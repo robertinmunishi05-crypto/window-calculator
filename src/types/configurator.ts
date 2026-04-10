@@ -1,13 +1,20 @@
 export type ProductType = 
-  | 'dritare-fikse'
-  | 'dritare-dy-krahe'
-  | 'nje-krahe-fiks'
-  | 'dy-krahe-hapese'
-  | 'shiber'
-  | 'hibishiber'
+  | 'dritare'
   | 'dere';
 
 export type WindowColor = 'white' | 'brown' | 'black';
+
+export type PaneType = 'fixed' | 'open-left' | 'open-right' | 'slider';
+
+export interface WindowPane {
+  id: string;
+  type: PaneType;
+}
+
+export interface WindowStructure {
+  splits: 'none' | 'vertical' | 'horizontal';
+  panes: WindowPane[];
+}
 
 export interface ClientData {
   name: string;
@@ -23,15 +30,11 @@ export interface ConfigItem {
   color: WindowColor;
   pricePerSqm: number;
   quantity: number;
+  structure: WindowStructure;
 }
 
 export const PRODUCT_LABELS: Record<ProductType, string> = {
-  'dritare-fikse': 'Dritare Fikse',
-  'dritare-dy-krahe': 'Dritare me Dy Krahë',
-  'nje-krahe-fiks': 'Një Krahë + Fiks',
-  'dy-krahe-hapese': 'Dy Krahë Hapëse',
-  'shiber': 'Shibër',
-  'hibishiber': 'Hibishibër',
+  'dritare': 'Dritare',
   'dere': 'Derë',
 };
 
@@ -46,3 +49,17 @@ export const DEFAULT_PRICES: Record<WindowColor, number> = {
   brown: 95,
   black: 100,
 };
+
+export const PANE_TYPE_LABELS: Record<PaneType, string> = {
+  'fixed': 'Fiks',
+  'open-left': 'Hapëse Majtas',
+  'open-right': 'Hapëse Djathtas',
+  'slider': 'Shibër',
+};
+
+export function createDefaultStructure(): WindowStructure {
+  return {
+    splits: 'none',
+    panes: [{ id: crypto.randomUUID(), type: 'fixed' }],
+  };
+}

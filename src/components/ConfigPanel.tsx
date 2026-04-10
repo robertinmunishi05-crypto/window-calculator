@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ruler, Palette, Calculator } from "lucide-react";
 import { ConfigItem, WindowColor, COLOR_LABELS, DEFAULT_PRICES } from "@/types/configurator";
 import { cn } from "@/lib/utils";
-import WindowPreview from "./WindowPreview";
+import WindowEditor from "./WindowEditor";
 
 interface ConfigPanelProps {
   item: ConfigItem;
@@ -104,17 +104,25 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
         </CardContent>
       </Card>
 
-      {/* Preview */}
-      <Card>
-        <CardContent className="pt-6">
-          <WindowPreview
-            productType={item.productType}
-            color={item.color}
-            width={item.width}
-            height={item.height}
-          />
-        </CardContent>
-      </Card>
+      {/* Interactive Window Editor */}
+      {item.productType === 'dritare' && (
+        <WindowEditor
+          structure={item.structure}
+          onChange={(structure) => onChange({ ...item, structure })}
+          color={item.color}
+          width={item.width}
+          height={item.height}
+        />
+      )}
+
+      {/* Door preview for doors */}
+      {item.productType === 'dere' && (
+        <Card>
+          <CardContent className="pt-6">
+            <DoorPreview color={item.color} width={item.width} height={item.height} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Price */}
       <Card>
@@ -145,5 +153,32 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
     </div>
   );
 };
+
+function DoorPreview({ color, width, height }: { color: WindowColor; width: number; height: number }) {
+  const COLOR_MAP: Record<WindowColor, { frame: string; glass: string; bg: string }> = {
+    white: { frame: '#e5e5e5', glass: '#d4e8f7', bg: '#f0f0f0' },
+    brown: { frame: '#6b4226', glass: '#b8d4e8', bg: '#8b6914' },
+    black: { frame: '#2a2a2a', glass: '#a8c8e0', bg: '#1a1a1a' },
+  };
+  const c = COLOR_MAP[color];
+  const area = ((width / 1000) * (height / 1000)).toFixed(2);
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <svg viewBox="0 0 200 200" className="w-48 h-48 drop-shadow-lg">
+        <rect x="40" y="10" width="120" height="180" rx="4" fill={c.frame} />
+        <rect x="48" y="18" width="104" height="100" rx="2" fill={c.glass} />
+        <rect x="48" y="126" width="104" height="56" rx="2" fill={c.frame} opacity="0.8" />
+        <circle cx="140" cy="130" r="5" fill={c.bg} />
+      </svg>
+      <div className="text-center space-y-1">
+        <p className="text-sm font-medium">Derë</p>
+        <p className="text-xs text-muted-foreground">
+          {width} × {height} mm — {area} m²
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default ConfigPanel;
