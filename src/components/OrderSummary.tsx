@@ -44,6 +44,11 @@ const OrderSummary = ({ items, clientData, onRemoveItem, onAddNew }: OrderSummar
                   <div className="space-y-1">
                     <p className="text-sm font-medium">
                       {idx + 1}. {PRODUCT_LABELS[item.productType]}
+                      {item.productType === 'dritare' && item.structure && (
+                        <span className="text-xs font-normal text-muted-foreground ml-1">
+                          ({item.structure.panes.map(p => PANE_TYPE_LABELS[p.type]).join(' + ')})
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {item.width}×{item.height}mm · {COLOR_LABELS[item.color]} · x{item.quantity}
