@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileDown, Plus, Trash2, ClipboardList } from "lucide-react";
-import { ConfigItem, PRODUCT_LABELS, COLOR_LABELS, ClientData } from "@/types/configurator";
+import { ConfigItem, PRODUCT_LABELS, COLOR_LABELS, PANE_TYPE_LABELS, ClientData } from "@/types/configurator";
 import { generatePDF } from "@/lib/pdfGenerator";
 
 interface OrderSummaryProps {
