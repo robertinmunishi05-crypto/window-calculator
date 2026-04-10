@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { ClientData, ConfigItem, PRODUCT_LABELS, COLOR_LABELS } from '@/types/configurator';
+import { ClientData, ConfigItem, PRODUCT_LABELS, COLOR_LABELS, PANE_TYPE_LABELS } from '@/types/configurator';
 
 export function generatePDF(client: ClientData, items: ConfigItem[]) {
   const doc = new jsPDF();
@@ -40,9 +40,17 @@ export function generatePDF(client: ClientData, items: ConfigItem[]) {
   const tableData = items.map((item, i) => {
     const area = (item.width / 1000) * (item.height / 1000);
     const total = area * item.pricePerSqm * item.quantity;
+    
+    // Build structure description
+    let structureDesc = PRODUCT_LABELS[item.productType];
+    if (item.productType === 'dritare' && item.structure) {
+      const paneDescs = item.structure.panes.map(p => PANE_TYPE_LABELS[p.type]).join(' + ');
+      structureDesc += ` (${paneDescs})`;
+    }
+
     return [
       (i + 1).toString(),
-      PRODUCT_LABELS[item.productType],
+      structureDesc,
       `${item.width} x ${item.height}`,
       area.toFixed(2),
       COLOR_LABELS[item.color],

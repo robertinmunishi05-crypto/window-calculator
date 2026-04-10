@@ -3,7 +3,7 @@ import ClientForm from "@/components/ClientForm";
 import ProductSelector from "@/components/ProductSelector";
 import ConfigPanel from "@/components/ConfigPanel";
 import OrderSummary from "@/components/OrderSummary";
-import { ClientData, ConfigItem, ProductType, DEFAULT_PRICES } from "@/types/configurator";
+import { ClientData, ConfigItem, ProductType, DEFAULT_PRICES, createDefaultStructure } from "@/types/configurator";
 import { DoorOpen } from "lucide-react";
 
 const createItem = (productType: ProductType): ConfigItem => ({
@@ -14,6 +14,7 @@ const createItem = (productType: ProductType): ConfigItem => ({
   color: 'white',
   pricePerSqm: DEFAULT_PRICES.white,
   quantity: 1,
+  structure: createDefaultStructure(),
 });
 
 const Index = () => {
@@ -53,7 +54,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -68,7 +68,6 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column: config */}
           <div className="lg:col-span-2 space-y-6">
             <ClientForm data={clientData} onChange={setClientData} />
             <ProductSelector selected={currentItem?.productType ?? null} onSelect={handleProductSelect} />
@@ -85,7 +84,6 @@ const Index = () => {
             )}
           </div>
 
-          {/* Right column: summary */}
           <div className="lg:col-span-1">
             <div className="sticky top-20">
               <OrderSummary
