@@ -1,34 +1,13 @@
 import { useState, useCallback } from "react";
 import ClientForm from "@/components/ClientForm";
-import ProductSelector from "@/components/ProductSelector";
 import ConfigPanel from "@/components/ConfigPanel";
 import OrderSummary from "@/components/OrderSummary";
-import { ClientData, ConfigItem, ProductType, DEFAULT_PRICES, createDefaultStructure } from "@/types/configurator";
-import { DoorOpen } from "lucide-react";
-
-const createItem = (productType: ProductType): ConfigItem => ({
-  id: crypto.randomUUID(),
-  productType,
-  width: 1200,
-  height: 1400,
-  color: 'white',
-  pricePerSqm: DEFAULT_PRICES.white,
-  quantity: 1,
-  structure: createDefaultStructure(),
-});
+import { ClientData, ConfigItem, createDefaultItem } from "@/types/configurator";
 
 const Index = () => {
   const [clientData, setClientData] = useState<ClientData>({ name: '', phone: '', address: '' });
-  const [currentItem, setCurrentItem] = useState<ConfigItem | null>(null);
+  const [currentItem, setCurrentItem] = useState<ConfigItem | null>(createDefaultItem());
   const [items, setItems] = useState<ConfigItem[]>([]);
-
-  const handleProductSelect = useCallback((type: ProductType) => {
-    if (currentItem) {
-      setCurrentItem({ ...currentItem, productType: type });
-    } else {
-      setCurrentItem(createItem(type));
-    }
-  }, [currentItem]);
 
   const handleAddToOrder = useCallback(() => {
     if (!currentItem) return;
@@ -41,7 +20,7 @@ const Index = () => {
       }
       return [...prev, currentItem];
     });
-    setCurrentItem(null);
+    setCurrentItem(createDefaultItem());
   }, [currentItem]);
 
   const handleRemoveItem = useCallback((id: string) => {
@@ -49,17 +28,24 @@ const Index = () => {
   }, []);
 
   const handleAddNew = useCallback(() => {
-    setCurrentItem(null);
+    setCurrentItem(createDefaultItem());
   }, []);
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <DoorOpen className="h-7 w-7 text-primary" />
+          <div className="flex items-center gap-3">
+            {/* Logo placeholder */}
+            <div className="w-9 h-9 rounded-md bg-primary flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="1" />
+                <line x1="12" y1="3" x2="12" y2="21" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+              </svg>
+            </div>
             <div>
-              <h1 className="text-lg font-bold leading-tight">Dyer & Dritare</h1>
+              <h1 className="text-lg font-bold leading-tight">Window</h1>
               <p className="text-xs text-muted-foreground">Konfigurator Profesional</p>
             </div>
           </div>
@@ -70,7 +56,6 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <ClientForm data={clientData} onChange={setClientData} />
-            <ProductSelector selected={currentItem?.productType ?? null} onSelect={handleProductSelect} />
             {currentItem && (
               <div className="space-y-4">
                 <ConfigPanel item={currentItem} onChange={setCurrentItem} />
