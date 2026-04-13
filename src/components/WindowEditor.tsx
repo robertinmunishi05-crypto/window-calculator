@@ -9,10 +9,13 @@ import {
   ElementType,
   OpeningDirection,
   DoorFillType,
+  DoorComboPosition,
   PaneConfig,
+  ProductType,
   ELEMENT_TYPE_LABELS,
   OPENING_DIRECTION_LABELS,
   DOOR_FILL_LABELS,
+  DOOR_COMBO_POSITION_LABELS,
   COLOR_LABELS,
   findNode,
   updateNode,
@@ -20,7 +23,7 @@ import {
   createPaneNode,
 } from "@/types/configurator";
 import { cn } from "@/lib/utils";
-import { Edit3, Columns2, Rows2, Trash2, SplitSquareHorizontal, Plus, X } from "lucide-react";
+import { Edit3, Columns2, Rows2, Trash2, Plus } from "lucide-react";
 
 interface WindowEditorProps {
   rootNode: WindowNode;
@@ -28,6 +31,7 @@ interface WindowEditorProps {
   color: WindowColor;
   width: number;
   height: number;
+  productType: ProductType;
 }
 
 const COLOR_MAP: Record<WindowColor, { frame: string; glass: string; accent: string; panel: string }> = {
@@ -36,7 +40,7 @@ const COLOR_MAP: Record<WindowColor, { frame: string; glass: string; accent: str
   black: { frame: '#2a2a2a', glass: '#a8c8e0', accent: '#666', panel: '#444' },
 };
 
-const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditorProps) => {
+const WindowEditor = ({ rootNode, onChange, color, width, height, productType }: WindowEditorProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const c = COLOR_MAP[color];
 
@@ -55,7 +59,6 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
 
   const selectedNode = selectedId ? findNode(rootNode, selectedId) : null;
 
-  // Find the parent split of a node
   const findParentSplit = (root: WindowNode, targetId: string): WindowNode | null => {
     if (root.type === 'split' && root.children) {
       for (const child of root.children) {
@@ -81,9 +84,8 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
     if (!selectedId) return;
     const parent = findParentSplit(rootNode, selectedId);
     if (!parent || !parent.children || !parent.sizes) return;
-    
+
     if (parent.children.length <= 2) {
-      // Replace parent split with the other child
       const otherChild = parent.children.find(c => c.id !== selectedId);
       if (otherChild) {
         const newRoot = updateNode(rootNode, parent.id, () => ({
@@ -93,7 +95,6 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
         onChange(newRoot);
       }
     } else {
-      // Remove child from split
       const idx = parent.children.findIndex(c => c.id === selectedId);
       const newRoot = updateNode(rootNode, parent.id, (n) => {
         const newChildren = n.children!.filter((_, i) => i !== idx);
@@ -116,7 +117,9 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
     onChange(newRoot);
   };
 
-  const handleSizeChange = (splitId: string, childIndex: number, newSizeMm: number) => {
+  // Sizes stored in mm internally, displayed in cm
+  const handleSizeChangeCm = (splitId: string, childIndex: number, newSizeCm: number) => {
+    const newSizeMm = Math.round(newSizeCm * 10);
     const newRoot = updateNode(rootNode, splitId, (n) => {
       if (!n.sizes || !n.children) return n;
       const newSizes = [...n.sizes];
@@ -147,9 +150,11 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
     onChange(newRoot);
   };
 
-  // Check if this is the root pane (can't delete)
   const isRootNode = selectedId === rootNode.id;
   const parentSplit = selectedId ? findParentSplit(rootNode, selectedId) : null;
+
+  // Window-specific element types (no 'door')
+  const windowElementTypes: ElementType[] = ['fixed', 'opening', 'slider', 'tilt-turn'];
 
   // Recursive SVG renderer
   const renderNode = (node: WindowNode, x: number, y: number, w: number, h: number): React.ReactNode => {
@@ -157,13 +162,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
       const isSelected = selectedId === node.id;
       return (
         <g key={node.id} onClick={(e) => { e.stopPropagation(); setSelectedId(node.id); }} className="cursor-pointer">
-          <PaneRenderer
-            config={node.paneConfig!}
-            x={x} y={y} w={w} h={h}
-            isSelected={isSelected}
-            colors={c}
-          />
-          {/* Hover effect */}
+          <PaneRenderer config={node.paneConfig!} x={x} y={y} w={w} h={h} isSelected={isSelected} colors={c} />
           <rect x={x} y={y} width={w} height={h} fill="transparent" className="hover:fill-primary/5 transition-colors" />
         </g>
       );
@@ -177,7 +176,6 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
       node.children.forEach((child, i) => {
         const r = node.sizes![i] / totalSize;
         let cx: number, cy: number, cw: number, ch: number;
-
         if (node.direction === 'vertical') {
           cx = x + offset;
           cy = y;
@@ -193,25 +191,17 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
           if (i > 0) cy += dividerT / 2;
           offset += h * r;
         }
-
         elements.push(renderNode(child, cx, cy, cw, ch));
-
         if (i < node.children!.length - 1) {
           if (node.direction === 'vertical') {
-            elements.push(
-              <rect key={`div-${node.id}-${i}`} x={x + offset - dividerT / 2} y={y} width={dividerT} height={h} fill={c.frame} />
-            );
+            elements.push(<rect key={`div-${node.id}-${i}`} x={x + offset - dividerT / 2} y={y} width={dividerT} height={h} fill={c.frame} />);
           } else {
-            elements.push(
-              <rect key={`div-${node.id}-${i}`} x={x} y={y + offset - dividerT / 2} width={w} height={dividerT} fill={c.frame} />
-            );
+            elements.push(<rect key={`div-${node.id}-${i}`} x={x} y={y + offset - dividerT / 2} width={w} height={dividerT} fill={c.frame} />);
           }
         }
       });
-
       return <g key={node.id}>{elements}</g>;
     }
-
     return null;
   };
 
@@ -225,18 +215,13 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Edit3 className="h-4 w-4" />
-          Editor i Dritares
+          {productType === 'door' ? 'Editor i Derës' : 'Editor i Dritares'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* SVG Preview */}
         <div className="flex justify-center bg-muted/30 rounded-lg p-4">
-          <svg
-            width={svgW} height={svgH}
-            viewBox={`0 0 ${svgW} ${svgH}`}
-            className="drop-shadow-lg"
-            onClick={() => setSelectedId(null)}
-          >
+          <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} className="drop-shadow-lg" onClick={() => setSelectedId(null)}>
             <rect x="0" y="0" width={svgW} height={svgH} rx="3" fill={c.frame} />
             {renderNode(rootNode, innerX, innerY, innerW, innerH)}
           </svg>
@@ -245,15 +230,15 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
         {/* Dimensions label */}
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            {width} × {height} mm — {((width / 1000) * (height / 1000)).toFixed(2)} m² — {COLOR_LABELS[color]}
+            {(width / 10).toFixed(1)} × {(height / 10).toFixed(1)} cm — {((width / 1000) * (height / 1000)).toFixed(2)} m² — {COLOR_LABELS[color]}
           </p>
         </div>
 
-        {/* Help text when nothing selected */}
+        {/* Help text */}
         {!selectedNode && (
           <div className="text-center py-3 rounded-lg border border-dashed border-muted-foreground/30">
             <p className="text-sm text-muted-foreground">
-              👆 Kliko mbi një pjesë të dritares për ta edituar
+              👆 Kliko mbi {productType === 'door' ? 'derën' : 'dritaren'} për ta edituar
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Mund ta ndash në pjesë, të zgjedhësh tipin, dhe të konfigurosh sipas dëshirës
@@ -261,10 +246,9 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
           </div>
         )}
 
-        {/* PANE SELECTED - show all controls inline */}
+        {/* PANE SELECTED */}
         {selectedNode && selectedNode.type === 'pane' && (
           <div className="space-y-4 p-4 rounded-lg bg-muted/50 border-2 border-primary/30 animate-in fade-in duration-200">
-            {/* Header */}
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary" />
@@ -277,85 +261,138 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
               )}
             </div>
 
-            {/* Element type - big clear buttons */}
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Çfarë tipi është kjo pjesë?</Label>
-              <div className="grid grid-cols-5 gap-1.5">
-                {(['fixed', 'opening', 'slider', 'tilt-turn', 'door'] as ElementType[]).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => handlePaneConfigChange({ 
-                      elementType: t, 
-                      openingDirection: t === 'opening' ? 'left' : undefined, 
-                      doorFill: t === 'door' ? 'glass' : undefined 
-                    })}
-                    className={cn(
-                      "flex flex-col items-center gap-1 p-2 rounded-md border-2 transition-all text-xs",
-                      selectedNode.paneConfig?.elementType === t
-                        ? "border-primary bg-primary/10 font-semibold"
-                        : "border-border hover:border-primary/40"
-                    )}
-                  >
-                    <span className="text-lg">
-                      {t === 'fixed' ? '✕' : t === 'opening' ? '↗' : t === 'slider' ? '↔' : t === 'tilt-turn' ? '⟲' : '🚪'}
-                    </span>
-                    <span>{ELEMENT_TYPE_LABELS[t]}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Opening direction */}
-            {selectedNode.paneConfig?.elementType === 'opening' && (
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Drejtimi i hapjes</Label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {(['left', 'right', 'top', 'side'] as OpeningDirection[]).map(d => (
-                    <Button
-                      key={d}
-                      variant={selectedNode.paneConfig?.openingDirection === d ? 'default' : 'outline'}
-                      size="sm"
-                      className="text-xs h-8"
-                      onClick={() => handlePaneConfigChange({ openingDirection: d })}
-                    >
-                      {OPENING_DIRECTION_LABELS[d]}
-                    </Button>
-                  ))}
+            {/* === DOOR MODE === */}
+            {productType === 'door' && (
+              <>
+                {/* Opening direction */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Drejtimi i hapjes</Label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(['left', 'right'] as OpeningDirection[]).map(d => (
+                      <Button
+                        key={d}
+                        variant={selectedNode.paneConfig?.openingDirection === d ? 'default' : 'outline'}
+                        size="sm"
+                        className="text-xs h-9"
+                        onClick={() => handlePaneConfigChange({ elementType: 'door', openingDirection: d })}
+                      >
+                        {d === 'left' ? '← Majtas' : 'Djathtas →'}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                {/* Door fill type */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Mbushja e derës</Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['glass', 'panel', 'combo'] as DoorFillType[]).map(f => (
+                      <Button
+                        key={f}
+                        variant={selectedNode.paneConfig?.doorFill === f ? 'default' : 'outline'}
+                        size="sm"
+                        className="text-xs h-9"
+                        onClick={() => handlePaneConfigChange({ 
+                          doorFill: f, 
+                          doorComboRatio: f === 'combo' ? 50 : undefined,
+                          doorComboPosition: f === 'combo' ? 'panel-bottom' : undefined,
+                        })}
+                      >
+                        {DOOR_FILL_LABELS[f]}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {/* Combo options */}
+                  {selectedNode.paneConfig?.doorFill === 'combo' && (
+                    <div className="space-y-2 p-3 rounded-md bg-background border">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">Pozicioni i panelit</Label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {(['panel-bottom', 'panel-top'] as DoorComboPosition[]).map(pos => (
+                            <Button
+                              key={pos}
+                              variant={selectedNode.paneConfig?.doorComboPosition === pos ? 'default' : 'outline'}
+                              size="sm"
+                              className="text-xs h-8"
+                              onClick={() => handlePaneConfigChange({ doorComboPosition: pos })}
+                            >
+                              {DOOR_COMBO_POSITION_LABELS[pos]}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs whitespace-nowrap">Panel %</Label>
+                        <Input
+                          type="number"
+                          min={10}
+                          max={90}
+                          value={selectedNode.paneConfig.doorComboRatio ?? 50}
+                          onChange={(e) => handlePaneConfigChange({ doorComboRatio: Math.min(90, Math.max(10, Number(e.target.value))) })}
+                          className="w-20 h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
-            {/* Door fill */}
-            {selectedNode.paneConfig?.elementType === 'door' && (
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Mbushja e derës</Label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(['glass', 'panel', 'combo'] as DoorFillType[]).map(f => (
-                    <Button
-                      key={f}
-                      variant={selectedNode.paneConfig?.doorFill === f ? 'default' : 'outline'}
-                      size="sm"
-                      className="text-xs h-8"
-                      onClick={() => handlePaneConfigChange({ doorFill: f, doorComboRatio: f === 'combo' ? 50 : undefined })}
-                    >
-                      {DOOR_FILL_LABELS[f]}
-                    </Button>
-                  ))}
+            {/* === WINDOW MODE === */}
+            {productType === 'window' && (
+              <>
+                {/* Element type */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Çfarë tipi është kjo pjesë?</Label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {windowElementTypes.map(t => (
+                      <button
+                        key={t}
+                        onClick={() => handlePaneConfigChange({
+                          elementType: t,
+                          openingDirection: t === 'opening' ? 'left' : t === 'tilt-turn' ? 'tilt-turn' : undefined,
+                          doorFill: undefined,
+                        })}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-md border-2 transition-all text-xs",
+                          selectedNode.paneConfig?.elementType === t
+                            ? "border-primary bg-primary/10 font-semibold"
+                            : "border-border hover:border-primary/40"
+                        )}
+                      >
+                        <span className="text-lg">
+                          {t === 'fixed' ? '✕' : t === 'opening' ? '↗' : t === 'slider' ? '↔' : '⟲'}
+                        </span>
+                        <span>{ELEMENT_TYPE_LABELS[t]}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                {selectedNode.paneConfig?.doorFill === 'combo' && (
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs whitespace-nowrap">Panel %</Label>
-                    <Input
-                      type="number"
-                      min={10}
-                      max={90}
-                      value={selectedNode.paneConfig.doorComboRatio ?? 50}
-                      onChange={(e) => handlePaneConfigChange({ doorComboRatio: Math.min(90, Math.max(10, Number(e.target.value))) })}
-                      className="w-20 h-8 text-xs"
-                    />
+
+                {/* Opening direction for windows */}
+                {(selectedNode.paneConfig?.elementType === 'opening' || selectedNode.paneConfig?.elementType === 'tilt-turn') && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Drejtimi i hapjes</Label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(selectedNode.paneConfig?.elementType === 'opening'
+                        ? ['left', 'right', 'top'] as OpeningDirection[]
+                        : ['left', 'right', 'tilt-turn'] as OpeningDirection[]
+                      ).map(d => (
+                        <Button
+                          key={d}
+                          variant={selectedNode.paneConfig?.openingDirection === d ? 'default' : 'outline'}
+                          size="sm"
+                          className="text-xs h-8"
+                          onClick={() => handlePaneConfigChange({ openingDirection: d })}
+                        >
+                          {OPENING_DIRECTION_LABELS[d]}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* Split this pane */}
@@ -371,13 +408,14 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
               </div>
             </div>
 
-            {/* If parent is split, show size controls */}
+            {/* Sizes in cm */}
             {parentSplit && parentSplit.children && parentSplit.sizes && (
               <div className="space-y-2 pt-2 border-t">
-                <Label className="text-xs font-medium">Madhësia e pjesëve (mm)</Label>
+                <Label className="text-xs font-medium">Madhësia e pjesëve (cm)</Label>
                 <div className="space-y-1.5">
                   {parentSplit.children.map((child, i) => {
                     const isThis = child.id === selectedId;
+                    const sizeCm = (parentSplit.sizes![i] / 10);
                     return (
                       <div key={child.id} className={cn("flex items-center gap-2 p-1.5 rounded", isThis && "bg-primary/5")}>
                         <span className={cn("text-xs w-14", isThis ? "font-semibold text-primary" : "text-muted-foreground")}>
@@ -385,22 +423,18 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
                         </span>
                         <Input
                           type="number"
-                          value={parentSplit.sizes![i]}
-                          onChange={(e) => handleSizeChange(parentSplit.id, i, Math.max(50, Number(e.target.value)))}
+                          step={0.5}
+                          value={sizeCm}
+                          onChange={(e) => handleSizeChangeCm(parentSplit.id, i, Math.max(5, Number(e.target.value)))}
                           className="w-24 h-7 text-xs"
                         />
-                        <span className="text-xs text-muted-foreground">mm</span>
+                        <span className="text-xs text-muted-foreground">cm</span>
                       </div>
                     );
                   })}
                 </div>
                 {parentSplit.children.length < 6 && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-xs w-full h-8" 
-                    onClick={() => addChildToSplit(parentSplit.id)}
-                  >
+                  <Button variant="outline" size="sm" className="text-xs w-full h-8" onClick={() => addChildToSplit(parentSplit.id)}>
                     <Plus className="h-3 w-3 mr-1" /> Shto edhe një pjesë
                   </Button>
                 )}
@@ -409,7 +443,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height }: WindowEditor
           </div>
         )}
 
-        {/* SPLIT NODE SELECTED (clicked on divider area) */}
+        {/* SPLIT NODE SELECTED */}
         {selectedNode && selectedNode.type === 'split' && (
           <div className="space-y-3 p-4 rounded-lg bg-muted/50 border-2 border-primary/30">
             <p className="text-sm text-muted-foreground italic">
@@ -436,6 +470,7 @@ function PaneRenderer({
 
   const isDoorCombo = config.elementType === 'door' && config.doorFill === 'combo';
   const panelRatio = (config.doorComboRatio ?? 50) / 100;
+  const panelOnTop = config.doorComboPosition === 'panel-top';
   const panelH = isDoorCombo ? h * panelRatio : 0;
   const glassH = isDoorCombo ? h - panelH : h;
   const isDoorPanel = config.elementType === 'door' && config.doorFill === 'panel';
@@ -446,9 +481,19 @@ function PaneRenderer({
         <rect x={x} y={y} width={w} height={h} rx="1" fill={colors.panel} />
       ) : isDoorCombo ? (
         <>
-          <rect x={x} y={y} width={w} height={glassH} rx="1" fill={colors.glass} />
-          <rect x={x} y={y + glassH} width={w} height={panelH} fill={colors.panel} />
-          <line x1={x} y1={y + glassH} x2={x + w} y2={y + glassH} stroke={colors.frame} strokeWidth="2" />
+          {panelOnTop ? (
+            <>
+              <rect x={x} y={y} width={w} height={panelH} fill={colors.panel} />
+              <rect x={x} y={y + panelH} width={w} height={glassH} rx="1" fill={colors.glass} />
+              <line x1={x} y1={y + panelH} x2={x + w} y2={y + panelH} stroke={colors.frame} strokeWidth="2" />
+            </>
+          ) : (
+            <>
+              <rect x={x} y={y} width={w} height={glassH} rx="1" fill={colors.glass} />
+              <rect x={x} y={y + glassH} width={w} height={panelH} fill={colors.panel} />
+              <line x1={x} y1={y + glassH} x2={x + w} y2={y + glassH} stroke={colors.frame} strokeWidth="2" />
+            </>
+          )}
         </>
       ) : (
         <rect x={x} y={y} width={w} height={h} rx="1" fill={colors.glass} />
@@ -472,10 +517,14 @@ function PaneRenderer({
 
       {config.elementType === 'tilt-turn' && (
         <>
-          <OpeningOverlay dir="side" x={x} y={y} w={w} h={h} accent={colors.accent} />
-          <line x1={x + 4} y1={y + 4} x2={cx} y2={y + h * 0.3} stroke={colors.accent} strokeWidth="1" strokeDasharray="3 2" opacity="0.4" />
-          <line x1={x + w - 4} y1={y + 4} x2={cx} y2={y + h * 0.3} stroke={colors.accent} strokeWidth="1" strokeDasharray="3 2" opacity="0.4" />
-          <polygon points={`${cx - 4},${y + h * 0.3 + 2} ${cx},${y + h * 0.3 - 4} ${cx + 4},${y + h * 0.3 + 2}`} fill={colors.accent} opacity="0.5" />
+          <OpeningOverlay dir={config.openingDirection === 'tilt-turn' ? 'side' : (config.openingDirection || 'left')} x={x} y={y} w={w} h={h} accent={colors.accent} />
+          {config.openingDirection === 'tilt-turn' && (
+            <>
+              <line x1={x + 4} y1={y + 4} x2={cx} y2={y + h * 0.3} stroke={colors.accent} strokeWidth="1" strokeDasharray="3 2" opacity="0.4" />
+              <line x1={x + w - 4} y1={y + 4} x2={cx} y2={y + h * 0.3} stroke={colors.accent} strokeWidth="1" strokeDasharray="3 2" opacity="0.4" />
+              <polygon points={`${cx - 4},${y + h * 0.3 + 2} ${cx},${y + h * 0.3 - 4} ${cx + 4},${y + h * 0.3 + 2}`} fill={colors.accent} opacity="0.5" />
+            </>
+          )}
         </>
       )}
 
@@ -489,8 +538,15 @@ function PaneRenderer({
 
       {config.elementType === 'door' && (
         <>
-          <circle cx={x + w - 10} cy={cy} r="3" fill={colors.accent} opacity="0.7" />
-          <rect x={x + w - 14} y={cy - 8} width="4" height="16" rx="2" fill={colors.accent} opacity="0.5" />
+          <circle cx={config.openingDirection === 'right' ? x + 10 : x + w - 10} cy={cy} r="3" fill={colors.accent} opacity="0.7" />
+          <rect x={config.openingDirection === 'right' ? x + 6 : x + w - 14} y={cy - 8} width="4" height="16" rx="2" fill={colors.accent} opacity="0.5" />
+          {/* Door opening arc */}
+          {config.openingDirection === 'left' && (
+            <path d={`M ${x + w - 6} ${y + 6} Q ${x + w * 0.3} ${y + h * 0.15} ${x + 6} ${cy}`} fill="none" stroke={colors.accent} strokeWidth="1" strokeDasharray="4 3" opacity="0.35" />
+          )}
+          {config.openingDirection === 'right' && (
+            <path d={`M ${x + 6} ${y + 6} Q ${x + w * 0.7} ${y + h * 0.15} ${x + w - 6} ${cy}`} fill="none" stroke={colors.accent} strokeWidth="1" strokeDasharray="4 3" opacity="0.35" />
+          )}
         </>
       )}
     </>
@@ -530,7 +586,7 @@ function OpeningOverlay({ dir, x, y, w, h, accent }: {
       </>
     );
   }
-  if (dir === 'side') {
+  if (dir === 'side' || dir === 'tilt-turn') {
     return (
       <>
         <circle cx={x + 5} cy={cy} r="3" fill={accent} opacity="0.6" />
