@@ -1,9 +1,9 @@
 // ===== ELEMENT TYPES =====
 export type ProductType = 'window' | 'door';
 
-export type ElementType = 'fixed' | 'opening' | 'slider' | 'tilt-turn' | 'door';
+export type ElementType = 'fixed' | 'opening' | 'door';
 
-export type OpeningDirection = 'left' | 'right' | 'top' | 'side' | 'tilt-turn';
+export type OpeningDirection = 'left' | 'right' | 'top';
 
 export type DoorFillType = 'glass' | 'panel' | 'combo';
 
@@ -18,19 +18,17 @@ export interface PaneConfig {
   elementType: ElementType;
   openingDirection?: OpeningDirection;
   doorFill?: DoorFillType;
-  doorComboRatio?: number; // percentage of panel (0-100)
-  doorComboPosition?: DoorComboPosition; // panel on top or bottom
+  doorComboRatio?: number;
+  doorComboPosition?: DoorComboPosition;
 }
 
 // ===== RECURSIVE WINDOW NODE =====
 export interface WindowNode {
   id: string;
   type: 'pane' | 'split';
-  // Split properties
   direction?: SplitDirection;
   children?: WindowNode[];
   sizes?: number[]; // mm for each child
-  // Pane properties
   paneConfig?: PaneConfig;
 }
 
@@ -62,8 +60,6 @@ export const COLOR_LABELS: Record<WindowColor, string> = {
 export const ELEMENT_TYPE_LABELS: Record<ElementType, string> = {
   fixed: 'Fiks',
   opening: 'Hapëse',
-  slider: 'Shibër',
-  'tilt-turn': 'Hibishibër',
   door: 'Derë',
 };
 
@@ -71,8 +67,6 @@ export const OPENING_DIRECTION_LABELS: Record<OpeningDirection, string> = {
   left: 'Majtas',
   right: 'Djathtas',
   top: 'Kiper (Nga Lart)',
-  side: 'Anash',
-  'tilt-turn': 'Anash + Kiper',
 };
 
 export const DOOR_FILL_LABELS: Record<DoorFillType, string> = {
@@ -150,17 +144,27 @@ export function updateNode(root: WindowNode, id: string, updater: (node: WindowN
   return root;
 }
 
-export function splitNode(node: WindowNode, direction: SplitDirection, totalSize: number): WindowNode {
-  const halfSize = Math.round(totalSize / 2);
+export function splitNode(node: WindowNode, direction: SplitDirection, totalSize: number, numParts: number = 2): WindowNode {
+  const partSize = Math.round(totalSize / numParts);
+  const sizes = Array(numParts).fill(partSize);
+  // Adjust last to account for rounding
+  sizes[numParts - 1] = totalSize - partSize * (numParts - 1);
+
+  const children: WindowNode[] = [];
+  for (let i = 0; i < numParts; i++) {
+    if (i === 0 && node.type === 'pane') {
+      children.push({ ...node, id: crypto.randomUUID() });
+    } else {
+      children.push(createPaneNode());
+    }
+  }
+
   return {
     id: node.id,
     type: 'split',
     direction,
-    sizes: [halfSize, totalSize - halfSize],
-    children: [
-      node.type === 'pane' ? { ...node, id: crypto.randomUUID() } : createPaneNode(),
-      createPaneNode(),
-    ],
+    sizes,
+    children,
   };
 }
 
@@ -180,13 +184,11 @@ function collectLinearMeters(
 ) {
   if (node.type === 'pane') {
     const config = node.paneConfig;
-    if (config && (config.elementType === 'opening' || config.elementType === 'tilt-turn' || config.elementType === 'door')) {
-      // Opening pane has its own frame
+    if (config && (config.elementType === 'opening' || config.elementType === 'door')) {
       const perimeter = 2 * (widthMm + heightMm);
       acc.openingFrames += perimeter;
     }
     if (config?.elementType === 'door' && config.doorFill === 'combo' && config.doorComboRatio) {
-      // Combo door has a horizontal divider
       acc.dividers += widthMm;
     }
     return;
@@ -194,7 +196,6 @@ function collectLinearMeters(
 
   if (node.type === 'split' && node.children && node.sizes) {
     const count = node.children.length;
-    // Add dividers (count - 1)
     const dividerCount = count - 1;
     if (node.direction === 'vertical') {
       acc.dividers += dividerCount * heightMm;
@@ -202,7 +203,6 @@ function collectLinearMeters(
       acc.dividers += dividerCount * widthMm;
     }
 
-    // Recurse into children
     const totalSize = node.sizes.reduce((a, b) => a + b, 0);
     node.children.forEach((child, i) => {
       const childSize = node.sizes![i] || 0;
@@ -220,7 +220,7 @@ function collectLinearMeters(
 }
 
 export function calculateLinearMeters(item: ConfigItem): LinearMeterResult {
-  const outerFrame = 2 * (item.width + item.height); // mm
+  const outerFrame = 2 * (item.width + item.height);
   const acc = { dividers: 0, openingFrames: 0 };
   collectLinearMeters(item.rootNode, item.width, item.height, acc);
 
