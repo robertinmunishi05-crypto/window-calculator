@@ -36,14 +36,26 @@ function drawNodePDF(
       doc.rect(x, y, w, h, 'F');
     } else if (isDoorCombo) {
       const panelRatio = (config.doorComboRatio ?? 50) / 100;
-      const glassH = h * (1 - panelRatio);
-      doc.setFillColor(c.glass[0], c.glass[1], c.glass[2]);
-      doc.rect(x, y, w, glassH, 'F');
-      doc.setFillColor(c.panel[0], c.panel[1], c.panel[2]);
-      doc.rect(x, y + glassH, w, h * panelRatio, 'F');
-      doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
-      doc.setLineWidth(0.3);
-      doc.line(x, y + glassH, x + w, y + glassH);
+      const panelOnTop = config.doorComboPosition === 'panel-top';
+      if (panelOnTop) {
+        const panelH = h * panelRatio;
+        doc.setFillColor(c.panel[0], c.panel[1], c.panel[2]);
+        doc.rect(x, y, w, panelH, 'F');
+        doc.setFillColor(c.glass[0], c.glass[1], c.glass[2]);
+        doc.rect(x, y + panelH, w, h - panelH, 'F');
+        doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
+        doc.setLineWidth(0.3);
+        doc.line(x, y + panelH, x + w, y + panelH);
+      } else {
+        const glassH = h * (1 - panelRatio);
+        doc.setFillColor(c.glass[0], c.glass[1], c.glass[2]);
+        doc.rect(x, y, w, glassH, 'F');
+        doc.setFillColor(c.panel[0], c.panel[1], c.panel[2]);
+        doc.rect(x, y + glassH, w, h * panelRatio, 'F');
+        doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
+        doc.setLineWidth(0.3);
+        doc.line(x, y + glassH, x + w, y + glassH);
+      }
     } else {
       doc.setFillColor(c.glass[0], c.glass[1], c.glass[2]);
       doc.rect(x, y, w, h, 'F');
@@ -58,13 +70,13 @@ function drawNodePDF(
     }
 
     // Opening arrow
-    if (config.elementType === 'opening' || config.elementType === 'tilt-turn') {
+    if (config.elementType === 'opening') {
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
       doc.setLineWidth(0.3);
       const cx = x + w / 2;
       const cy = y + h / 2;
       const dir = config.openingDirection || 'left';
-      if (dir === 'left' || dir === 'side') {
+      if (dir === 'left') {
         doc.line(cx + 3, cy, cx - 3, cy);
         doc.line(cx - 3, cy, cx - 1, cy - 2);
       } else if (dir === 'right') {
@@ -74,14 +86,6 @@ function drawNodePDF(
         doc.line(cx, cy + 3, cx, cy - 3);
         doc.line(cx, cy - 3, cx - 2, cy - 1);
       }
-    }
-
-    // Slider
-    if (config.elementType === 'slider') {
-      doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
-      doc.setLineWidth(0.3);
-      const cy = y + h / 2;
-      doc.line(x + 3, cy, x + w - 3, cy);
     }
 
     // Door handle
@@ -121,7 +125,6 @@ function drawNodePDF(
 
       drawNodePDF(doc, child, cx, cy, cw, ch, color, frameT, divT);
 
-      // Divider
       if (i < node.children!.length - 1) {
         doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
         doc.setLineWidth(divT);
@@ -135,9 +138,46 @@ function drawNodePDF(
   }
 }
 
+function drawItemSketch(
+  doc: jsPDF,
+  item: ConfigItem,
+  x: number, y: number,
+  maxW: number, maxH: number,
+) {
+  const ratio = item.width / item.height;
+  let skW: number, skH: number;
+  if (ratio > maxW / maxH) {
+    skW = maxW; skH = maxW / ratio;
+  } else {
+    skH = maxH; skW = maxH * ratio;
+  }
+
+  const skX = x + (maxW - skW) / 2;
+  const skY = y + (maxH - skH) / 2;
+  const frameT = 1.5;
+
+  // Outer frame
+  doc.setDrawColor(100, 100, 100);
+  doc.setLineWidth(frameT);
+  doc.rect(skX, skY, skW, skH);
+
+  // Draw recursive structure
+  drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color);
+
+  // Dimension annotations
+  doc.setTextColor(80, 80, 80);
+  doc.setFontSize(6);
+  doc.text(`${item.width}×${item.height}mm`, x + maxW / 2, y + maxH + 4, { align: 'center' });
+  doc.text(describeNode(item.rootNode).substring(0, 30), x + maxW / 2, y + maxH + 8, { align: 'center' });
+  
+  const lm = calculateLinearMeters(item);
+  doc.text(`${lm.total.toFixed(2)} m profil · x${item.quantity}`, x + maxW / 2, y + maxH + 12, { align: 'center' });
+}
+
 export function generatePDF(client: ClientData, items: ConfigItem[]) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
   // Header
   doc.setFillColor(75, 55, 35);
@@ -204,8 +244,17 @@ export function generatePDF(client: ClientData, items: ConfigItem[]) {
     },
   });
 
-  // Draw sketches for each item on new pages
-  items.forEach((item, idx) => {
+  // Draw sketches - 4 per row on new pages
+  const cols = 4;
+  const margin = 15;
+  const gap = 8;
+  const cellW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
+  const cellH = 50; // sketch height area
+  const rowH = cellH + 18; // extra for text below
+  const maxRows = Math.floor((pageHeight - 50) / (rowH + gap));
+
+  let pageItems = [...items];
+  while (pageItems.length > 0) {
     doc.addPage();
 
     // Header bar
@@ -214,60 +263,26 @@ export function generatePDF(client: ClientData, items: ConfigItem[]) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Element ${idx + 1} — Skica`, pageWidth / 2, 16, { align: 'center' });
+    doc.text('Skicat e Elementeve', pageWidth / 2, 16, { align: 'center' });
 
-    // Info
-    doc.setTextColor(50, 50, 50);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Dimensionet: ${item.width} × ${item.height} mm`, 15, 38);
-    doc.text(`Ngjyra: ${COLOR_LABELS[item.color]}`, 15, 45);
-    const lm = calculateLinearMeters(item);
-    doc.text(`Profil total: ${lm.total.toFixed(2)} m`, 15, 52);
-    doc.text(`  Kornizë e jashtme: ${lm.outerFrame.toFixed(2)} m | Ndarje: ${lm.innerDividers.toFixed(2)} m | Hapëse: ${lm.openingFrames.toFixed(2)} m`, 15, 59);
+    const itemsPerPage = maxRows * cols;
+    const batch = pageItems.splice(0, itemsPerPage);
 
-    // Draw the window sketch
-    const sketchMaxW = pageWidth - 40;
-    const sketchMaxH = 120;
-    const ratio = item.width / item.height;
-    let skW: number, skH: number;
-    if (ratio > sketchMaxW / sketchMaxH) {
-      skW = sketchMaxW; skH = sketchMaxW / ratio;
-    } else {
-      skH = sketchMaxH; skW = sketchMaxH * ratio;
-    }
+    batch.forEach((item, idx) => {
+      const row = Math.floor(idx / cols);
+      const col = idx % cols;
+      const ix = margin + col * (cellW + gap);
+      const iy = 35 + row * (rowH + gap);
 
-    const skX = (pageWidth - skW) / 2;
-    const skY = 70;
-    const frameT = 2;
-
-    // Outer frame
-    doc.setDrawColor(100, 100, 100);
-    doc.setLineWidth(frameT);
-    doc.rect(skX, skY, skW, skH);
-
-    // Draw recursive structure
-    drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color);
-
-    // Dimension annotations
-    doc.setTextColor(80, 80, 80);
-    doc.setFontSize(9);
-    // Width annotation
-    doc.text(`${item.width} mm`, skX + skW / 2, skY + skH + 8, { align: 'center' });
-    // Height annotation
-    doc.text(`${item.height} mm`, skX - 5, skY + skH / 2, { align: 'right', angle: 90 } as any);
-
-    // Configuration description
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    doc.text(`Konfigurimi: ${describeNode(item.rootNode)}`, 15, skY + skH + 20);
-  });
+      drawItemSketch(doc, item, ix, iy, cellW, cellH);
+    });
+  }
 
   // Footer on all pages
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    const footerY = doc.internal.pageSize.getHeight() - 10;
+    const footerY = pageHeight - 10;
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text('Window — Konfigurator Profesional', pageWidth / 2, footerY, { align: 'center' });

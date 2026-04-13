@@ -42,6 +42,7 @@ const COLOR_MAP: Record<WindowColor, { frame: string; glass: string; accent: str
 
 const WindowEditor = ({ rootNode, onChange, color, width, height, productType }: WindowEditorProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [splitCount, setSplitCount] = useState(2);
   const c = COLOR_MAP[color];
 
   const maxW = 500;
@@ -75,9 +76,10 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
     const node = findNode(rootNode, selectedId);
     if (!node || node.type !== 'pane') return;
     const size = direction === 'vertical' ? width : height;
-    const newRoot = updateNode(rootNode, selectedId, (n) => splitNode(n, direction, size));
+    const newRoot = updateNode(rootNode, selectedId, (n) => splitNode(n, direction, size, splitCount));
     onChange(newRoot);
     setSelectedId(null);
+    setSplitCount(2);
   };
 
   const handleDeletePane = () => {
@@ -117,17 +119,13 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
     onChange(newRoot);
   };
 
-  // Sizes stored in mm internally, displayed in cm
+  // Freely editable cm inputs - no auto-adjustment
   const handleSizeChangeCm = (splitId: string, childIndex: number, newSizeCm: number) => {
     const newSizeMm = Math.round(newSizeCm * 10);
     const newRoot = updateNode(rootNode, splitId, (n) => {
       if (!n.sizes || !n.children) return n;
       const newSizes = [...n.sizes];
-      const diff = newSizeMm - newSizes[childIndex];
-      newSizes[childIndex] = newSizeMm;
-      if (childIndex < newSizes.length - 1) {
-        newSizes[childIndex + 1] = Math.max(50, newSizes[childIndex + 1] - diff);
-      }
+      newSizes[childIndex] = Math.max(10, newSizeMm);
       return { ...n, sizes: newSizes };
     });
     onChange(newRoot);
@@ -153,8 +151,8 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
   const isRootNode = selectedId === rootNode.id;
   const parentSplit = selectedId ? findParentSplit(rootNode, selectedId) : null;
 
-  // Window-specific element types (no 'door')
-  const windowElementTypes: ElementType[] = ['fixed', 'opening', 'slider', 'tilt-turn'];
+  // Window element types (no slider, no tilt-turn)
+  const windowElementTypes: ElementType[] = ['fixed', 'opening'];
 
   // Recursive SVG renderer
   const renderNode = (node: WindowNode, x: number, y: number, w: number, h: number): React.ReactNode => {
@@ -220,8 +218,8 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
       </CardHeader>
       <CardContent className="space-y-4">
         {/* SVG Preview */}
-        <div className="flex justify-center bg-muted/30 rounded-lg p-4">
-          <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} className="drop-shadow-lg" onClick={() => setSelectedId(null)}>
+        <div className="flex justify-center bg-muted/30 rounded-lg p-4 overflow-x-auto">
+          <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} className="drop-shadow-lg max-w-full h-auto" onClick={() => setSelectedId(null)}>
             <rect x="0" y="0" width={svgW} height={svgH} rx="3" fill={c.frame} />
             {renderNode(rootNode, innerX, innerY, innerW, innerH)}
           </svg>
@@ -248,7 +246,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
 
         {/* PANE SELECTED */}
         {selectedNode && selectedNode.type === 'pane' && (
-          <div className="space-y-4 p-4 rounded-lg bg-muted/50 border-2 border-primary/30 animate-in fade-in duration-200">
+          <div className="space-y-4 p-3 sm:p-4 rounded-lg bg-muted/50 border-2 border-primary/30 animate-in fade-in duration-200">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary" />
@@ -264,7 +262,6 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
             {/* === DOOR MODE === */}
             {productType === 'door' && (
               <>
-                {/* Opening direction */}
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Drejtimi i hapjes</Label>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -282,7 +279,6 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                   </div>
                 </div>
 
-                {/* Door fill type */}
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Mbushja e derës</Label>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -292,8 +288,8 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                         variant={selectedNode.paneConfig?.doorFill === f ? 'default' : 'outline'}
                         size="sm"
                         className="text-xs h-9"
-                        onClick={() => handlePaneConfigChange({ 
-                          doorFill: f, 
+                        onClick={() => handlePaneConfigChange({
+                          doorFill: f,
                           doorComboRatio: f === 'combo' ? 50 : undefined,
                           doorComboPosition: f === 'combo' ? 'panel-bottom' : undefined,
                         })}
@@ -303,7 +299,6 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                     ))}
                   </div>
 
-                  {/* Combo options */}
                   {selectedNode.paneConfig?.doorFill === 'combo' && (
                     <div className="space-y-2 p-3 rounded-md bg-background border">
                       <div className="space-y-1.5">
@@ -342,16 +337,15 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
             {/* === WINDOW MODE === */}
             {productType === 'window' && (
               <>
-                {/* Element type */}
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Çfarë tipi është kjo pjesë?</Label>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {windowElementTypes.map(t => (
                       <button
                         key={t}
                         onClick={() => handlePaneConfigChange({
                           elementType: t,
-                          openingDirection: t === 'opening' ? 'left' : t === 'tilt-turn' ? 'tilt-turn' : undefined,
+                          openingDirection: t === 'opening' ? 'left' : undefined,
                           doorFill: undefined,
                         })}
                         className={cn(
@@ -362,7 +356,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                         )}
                       >
                         <span className="text-lg">
-                          {t === 'fixed' ? '✕' : t === 'opening' ? '↗' : t === 'slider' ? '↔' : '⟲'}
+                          {t === 'fixed' ? '✕' : '↗'}
                         </span>
                         <span>{ELEMENT_TYPE_LABELS[t]}</span>
                       </button>
@@ -370,15 +364,11 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                   </div>
                 </div>
 
-                {/* Opening direction for windows */}
-                {(selectedNode.paneConfig?.elementType === 'opening' || selectedNode.paneConfig?.elementType === 'tilt-turn') && (
+                {selectedNode.paneConfig?.elementType === 'opening' && (
                   <div className="space-y-2">
                     <Label className="text-xs font-medium">Drejtimi i hapjes</Label>
                     <div className="grid grid-cols-3 gap-1.5">
-                      {(selectedNode.paneConfig?.elementType === 'opening'
-                        ? ['left', 'right', 'top'] as OpeningDirection[]
-                        : ['left', 'right', 'tilt-turn'] as OpeningDirection[]
-                      ).map(d => (
+                      {(['left', 'right', 'top'] as OpeningDirection[]).map(d => (
                         <Button
                           key={d}
                           variant={selectedNode.paneConfig?.openingDirection === d ? 'default' : 'outline'}
@@ -398,17 +388,28 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
             {/* Split this pane */}
             <div className="space-y-2 pt-2 border-t">
               <Label className="text-xs font-medium">Ndaj këtë pjesë në copa</Label>
+              <div className="flex items-center gap-2 mb-2">
+                <Label className="text-xs whitespace-nowrap">Sa pjesë?</Label>
+                <Input
+                  type="number"
+                  min={2}
+                  max={8}
+                  value={splitCount}
+                  onChange={(e) => setSplitCount(Math.max(2, Math.min(8, Number(e.target.value))))}
+                  className="w-16 h-8 text-xs"
+                />
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => handleSplit('vertical')}>
-                  <Columns2 className="h-4 w-4 mr-1.5" /> Ndaj Vertikalisht
+                  <Columns2 className="h-4 w-4 mr-1.5" /> Vertikalisht
                 </Button>
                 <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => handleSplit('horizontal')}>
-                  <Rows2 className="h-4 w-4 mr-1.5" /> Ndaj Horizontalisht
+                  <Rows2 className="h-4 w-4 mr-1.5" /> Horizontalisht
                 </Button>
               </div>
             </div>
 
-            {/* Sizes in cm */}
+            {/* Sizes in cm - freely editable */}
             {parentSplit && parentSplit.children && parentSplit.sizes && (
               <div className="space-y-2 pt-2 border-t">
                 <Label className="text-xs font-medium">Madhësia e pjesëve (cm)</Label>
@@ -423,9 +424,10 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                         </span>
                         <Input
                           type="number"
-                          step={0.5}
+                          step={0.1}
+                          min={1}
                           value={sizeCm}
-                          onChange={(e) => handleSizeChangeCm(parentSplit.id, i, Math.max(5, Number(e.target.value)))}
+                          onChange={(e) => handleSizeChangeCm(parentSplit.id, i, Number(e.target.value))}
                           className="w-24 h-7 text-xs"
                         />
                         <span className="text-xs text-muted-foreground">cm</span>
@@ -433,7 +435,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                     );
                   })}
                 </div>
-                {parentSplit.children.length < 6 && (
+                {parentSplit.children.length < 8 && (
                   <Button variant="outline" size="sm" className="text-xs w-full h-8" onClick={() => addChildToSplit(parentSplit.id)}>
                     <Plus className="h-3 w-3 mr-1" /> Shto edhe një pjesë
                   </Button>
@@ -515,32 +517,10 @@ function PaneRenderer({
 
       {config.elementType === 'opening' && <OpeningOverlay dir={config.openingDirection || 'left'} x={x} y={y} w={w} h={h} accent={colors.accent} />}
 
-      {config.elementType === 'tilt-turn' && (
-        <>
-          <OpeningOverlay dir={config.openingDirection === 'tilt-turn' ? 'side' : (config.openingDirection || 'left')} x={x} y={y} w={w} h={h} accent={colors.accent} />
-          {config.openingDirection === 'tilt-turn' && (
-            <>
-              <line x1={x + 4} y1={y + 4} x2={cx} y2={y + h * 0.3} stroke={colors.accent} strokeWidth="1" strokeDasharray="3 2" opacity="0.4" />
-              <line x1={x + w - 4} y1={y + 4} x2={cx} y2={y + h * 0.3} stroke={colors.accent} strokeWidth="1" strokeDasharray="3 2" opacity="0.4" />
-              <polygon points={`${cx - 4},${y + h * 0.3 + 2} ${cx},${y + h * 0.3 - 4} ${cx + 4},${y + h * 0.3 + 2}`} fill={colors.accent} opacity="0.5" />
-            </>
-          )}
-        </>
-      )}
-
-      {config.elementType === 'slider' && (
-        <>
-          <line x1={x + 8} y1={cy} x2={x + w - 8} y2={cy} stroke={colors.accent} strokeWidth="2" opacity="0.4" />
-          <polygon points={`${x + 12},${cy - 4} ${x + 8},${cy} ${x + 12},${cy + 4}`} fill={colors.accent} opacity="0.5" />
-          <polygon points={`${x + w - 12},${cy - 4} ${x + w - 8},${cy} ${x + w - 12},${cy + 4}`} fill={colors.accent} opacity="0.5" />
-        </>
-      )}
-
       {config.elementType === 'door' && (
         <>
           <circle cx={config.openingDirection === 'right' ? x + 10 : x + w - 10} cy={cy} r="3" fill={colors.accent} opacity="0.7" />
           <rect x={config.openingDirection === 'right' ? x + 6 : x + w - 14} y={cy - 8} width="4" height="16" rx="2" fill={colors.accent} opacity="0.5" />
-          {/* Door opening arc */}
           {config.openingDirection === 'left' && (
             <path d={`M ${x + w - 6} ${y + 6} Q ${x + w * 0.3} ${y + h * 0.15} ${x + 6} ${cy}`} fill="none" stroke={colors.accent} strokeWidth="1" strokeDasharray="4 3" opacity="0.35" />
           )}
@@ -583,14 +563,6 @@ function OpeningOverlay({ dir, x, y, w, h, accent }: {
         <circle cx={cx} cy={y + h - 5} r="3" fill={accent} opacity="0.6" />
         <line x1={cx} y1={cy + 6} x2={cx} y2={cy - 10} stroke={accent} strokeWidth="1.5" opacity="0.5" />
         <polygon points={`${cx - 4},${cy - 6} ${cx},${cy - 10} ${cx + 4},${cy - 6}`} fill={accent} opacity="0.5" />
-      </>
-    );
-  }
-  if (dir === 'side' || dir === 'tilt-turn') {
-    return (
-      <>
-        <circle cx={x + 5} cy={cy} r="3" fill={accent} opacity="0.6" />
-        <path d={`M ${x + 6} ${y + 6} L ${x + w - 6} ${cy} L ${x + 6} ${y + h - 6}`} fill="none" stroke={accent} strokeWidth="1" strokeDasharray="4 3" opacity="0.35" />
       </>
     );
   }
