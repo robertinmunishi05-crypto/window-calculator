@@ -106,6 +106,7 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
         color={item.color}
         width={item.width}
         height={item.height}
+        productType={item.productType}
       />
 
       {/* Linear Meters */}

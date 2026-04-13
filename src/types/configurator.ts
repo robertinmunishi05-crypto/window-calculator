@@ -1,9 +1,13 @@
 // ===== ELEMENT TYPES =====
+export type ProductType = 'window' | 'door';
+
 export type ElementType = 'fixed' | 'opening' | 'slider' | 'tilt-turn' | 'door';
 
 export type OpeningDirection = 'left' | 'right' | 'top' | 'side' | 'tilt-turn';
 
 export type DoorFillType = 'glass' | 'panel' | 'combo';
+
+export type DoorComboPosition = 'panel-bottom' | 'panel-top';
 
 export type WindowColor = 'white' | 'brown' | 'black';
 
@@ -14,7 +18,8 @@ export interface PaneConfig {
   elementType: ElementType;
   openingDirection?: OpeningDirection;
   doorFill?: DoorFillType;
-  doorComboRatio?: number; // percentage of panel from bottom (0-100)
+  doorComboRatio?: number; // percentage of panel (0-100)
+  doorComboPosition?: DoorComboPosition; // panel on top or bottom
 }
 
 // ===== RECURSIVE WINDOW NODE =====
@@ -39,6 +44,7 @@ export interface ClientData {
 // ===== CONFIG ITEM =====
 export interface ConfigItem {
   id: string;
+  productType: ProductType;
   width: number;  // mm
   height: number; // mm
   color: WindowColor;
@@ -75,6 +81,16 @@ export const DOOR_FILL_LABELS: Record<DoorFillType, string> = {
   combo: 'Panel + Xham',
 };
 
+export const DOOR_COMBO_POSITION_LABELS: Record<DoorComboPosition, string> = {
+  'panel-bottom': 'Paneli Poshtë',
+  'panel-top': 'Paneli Lart',
+};
+
+export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  window: 'Dritare',
+  door: 'Derë',
+};
+
 // ===== HELPERS =====
 export function createDefaultPaneConfig(): PaneConfig {
   return { elementType: 'fixed' };
@@ -92,14 +108,22 @@ export function createDefaultRootNode(): WindowNode {
   return createPaneNode();
 }
 
-export function createDefaultItem(): ConfigItem {
+export function createDefaultItem(productType: ProductType = 'window'): ConfigItem {
+  const defaultPaneConfig: PaneConfig = productType === 'door'
+    ? { elementType: 'door', openingDirection: 'left', doorFill: 'glass' }
+    : { elementType: 'fixed' };
   return {
     id: crypto.randomUUID(),
-    width: 1200,
-    height: 1400,
+    productType,
+    width: productType === 'door' ? 900 : 1200,
+    height: productType === 'door' ? 2100 : 1400,
     color: 'white',
     quantity: 1,
-    rootNode: createDefaultRootNode(),
+    rootNode: {
+      id: crypto.randomUUID(),
+      type: 'pane',
+      paneConfig: defaultPaneConfig,
+    },
   };
 }
 
