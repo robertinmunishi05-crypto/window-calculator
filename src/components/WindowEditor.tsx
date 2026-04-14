@@ -70,16 +70,13 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
     return null;
   };
 
-  const handleSplitConfirm = () => {
-    if (!selectedId || !pendingSplitDir) return;
+  const handleSplit = (direction: 'vertical' | 'horizontal') => {
+    if (!selectedId) return;
     const node = findNode(rootNode, selectedId);
     if (!node || node.type !== 'pane') return;
-    const size = pendingSplitDir === 'vertical' ? width : height;
-    const newRoot = updateNode(rootNode, selectedId, (n) => splitNode(n, pendingSplitDir, size, splitCount));
+    const size = direction === 'vertical' ? width : height;
+    const newRoot = updateNode(rootNode, selectedId, (n) => splitNode(n, direction, size, 2));
     onChange(newRoot);
-    setSelectedId(null);
-    setPendingSplitDir(null);
-    setSplitCount(2);
   };
 
   const handleDeletePane = () => {
