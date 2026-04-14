@@ -119,7 +119,7 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
         <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Korniza e jashtme</span>
+              <span className="text-muted-foreground">L — Korniza e jashtme</span>
               <span className="font-medium">{linearMeters.outerFrame.toFixed(2)} m</span>
             </div>
             <div className="flex justify-between text-sm">
@@ -127,7 +127,7 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
               <span className="font-medium">{linearMeters.innerDividers.toFixed(2)} m</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Kornizat hapëse</span>
+              <span className="text-muted-foreground">Z — Kornizat hapëse</span>
               <span className="font-medium">{linearMeters.openingFrames.toFixed(2)} m</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10 mt-2">
