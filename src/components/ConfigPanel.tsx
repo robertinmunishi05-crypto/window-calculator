@@ -33,21 +33,21 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Gjerësia (mm)</Label>
+              <Label>Gjerësia (cm)</Label>
               <Input
                 type="number"
-                value={item.width || ''}
-                onChange={(e) => onChange({ ...item, width: Number(e.target.value) })}
-                placeholder="p.sh. 1200"
+                value={item.width / 10 || ''}
+                onChange={(e) => onChange({ ...item, width: Number(e.target.value) * 10 })}
+                placeholder="p.sh. 120"
               />
             </div>
             <div className="space-y-2">
-              <Label>Lartësia (mm)</Label>
+              <Label>Lartësia (cm)</Label>
               <Input
                 type="number"
-                value={item.height || ''}
-                onChange={(e) => onChange({ ...item, height: Number(e.target.value) })}
-                placeholder="p.sh. 1500"
+                value={item.height / 10 || ''}
+                onChange={(e) => onChange({ ...item, height: Number(e.target.value) * 10 })}
+                placeholder="p.sh. 150"
               />
             </div>
           </div>
@@ -56,9 +56,8 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
               <Label>Sasia</Label>
               <Input
                 type="number"
-                min={1}
                 value={item.quantity}
-                onChange={(e) => onChange({ ...item, quantity: Math.max(1, Number(e.target.value)) })}
+                onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) })}
                 className="w-20"
               />
             </div>
@@ -120,7 +119,7 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
         <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Korniza e jashtme</span>
+              <span className="text-muted-foreground">L — Korniza e jashtme</span>
               <span className="font-medium">{linearMeters.outerFrame.toFixed(2)} m</span>
             </div>
             <div className="flex justify-between text-sm">
@@ -128,7 +127,7 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
               <span className="font-medium">{linearMeters.innerDividers.toFixed(2)} m</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Kornizat hapëse</span>
+              <span className="text-muted-foreground">Z — Kornizat hapëse</span>
               <span className="font-medium">{linearMeters.openingFrames.toFixed(2)} m</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10 mt-2">

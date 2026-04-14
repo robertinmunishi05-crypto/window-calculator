@@ -1,9 +1,9 @@
 // ===== ELEMENT TYPES =====
 export type ProductType = 'window' | 'door';
 
-export type ElementType = 'fixed' | 'opening' | 'door';
+export type ElementType = 'fixed' | 'opening' | 'slider' | 'door';
 
-export type OpeningDirection = 'left' | 'right' | 'top';
+export type OpeningDirection = 'left' | 'right';
 
 export type DoorFillType = 'glass' | 'panel' | 'combo';
 
@@ -60,13 +60,13 @@ export const COLOR_LABELS: Record<WindowColor, string> = {
 export const ELEMENT_TYPE_LABELS: Record<ElementType, string> = {
   fixed: 'Fiks',
   opening: 'Hapëse',
+  slider: 'Shiber',
   door: 'Derë',
 };
 
 export const OPENING_DIRECTION_LABELS: Record<OpeningDirection, string> = {
   left: 'Majtas',
   right: 'Djathtas',
-  top: 'Kiper (Nga Lart)',
 };
 
 export const DOOR_FILL_LABELS: Record<DoorFillType, string> = {
@@ -184,7 +184,7 @@ function collectLinearMeters(
 ) {
   if (node.type === 'pane') {
     const config = node.paneConfig;
-    if (config && (config.elementType === 'opening' || config.elementType === 'door')) {
+    if (config && (config.elementType === 'opening' || config.elementType === 'door' || config.elementType === 'slider')) {
       const perimeter = 2 * (widthMm + heightMm);
       acc.openingFrames += perimeter;
     }
@@ -241,7 +241,7 @@ export function describeNode(node: WindowNode): string {
   if (node.type === 'pane' && node.paneConfig) {
     const config = node.paneConfig;
     let desc = ELEMENT_TYPE_LABELS[config.elementType];
-    if (config.elementType === 'opening' && config.openingDirection) {
+    if ((config.elementType === 'opening' || config.elementType === 'slider') && config.openingDirection) {
       desc += ` (${OPENING_DIRECTION_LABELS[config.openingDirection]})`;
     }
     if (config.elementType === 'door' && config.doorFill) {
