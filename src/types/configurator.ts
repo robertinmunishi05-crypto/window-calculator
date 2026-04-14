@@ -1,9 +1,9 @@
 // ===== ELEMENT TYPES =====
 export type ProductType = 'window' | 'door';
 
-export type ElementType = 'fixed' | 'opening' | 'door';
+export type ElementType = 'fixed' | 'opening' | 'slider' | 'door';
 
-export type OpeningDirection = 'left' | 'right' | 'top';
+export type OpeningDirection = 'left' | 'right';
 
 export type DoorFillType = 'glass' | 'panel' | 'combo';
 
@@ -60,13 +60,13 @@ export const COLOR_LABELS: Record<WindowColor, string> = {
 export const ELEMENT_TYPE_LABELS: Record<ElementType, string> = {
   fixed: 'Fiks',
   opening: 'Hapëse',
+  slider: 'Shiber',
   door: 'Derë',
 };
 
 export const OPENING_DIRECTION_LABELS: Record<OpeningDirection, string> = {
   left: 'Majtas',
   right: 'Djathtas',
-  top: 'Kiper (Nga Lart)',
 };
 
 export const DOOR_FILL_LABELS: Record<DoorFillType, string> = {
