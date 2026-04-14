@@ -105,7 +105,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
       onChange(newRoot);
     }
     setSelectedId(null);
-    setPendingSplitDir(null);
+    
   };
 
   const handlePaneConfigChange = (config: Partial<PaneConfig>) => {
@@ -156,7 +156,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
     if (node.type === 'pane') {
       const isSelected = selectedId === node.id;
       return (
-        <g key={node.id} onClick={(e) => { e.stopPropagation(); setSelectedId(node.id); setPendingSplitDir(null); }} className="cursor-pointer">
+        <g key={node.id} onClick={(e) => { e.stopPropagation(); setSelectedId(node.id); }} className="cursor-pointer">
           <PaneRenderer config={node.paneConfig!} x={x} y={y} w={w} h={h} isSelected={isSelected} colors={c} />
           <rect x={x} y={y} width={w} height={h} fill="transparent" className="hover:fill-primary/5 transition-colors" />
         </g>
@@ -216,7 +216,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
       <CardContent className="space-y-4">
         {/* SVG Preview */}
         <div className="flex justify-center bg-muted/30 rounded-lg p-4 overflow-x-auto">
-          <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} className="drop-shadow-lg max-w-full h-auto" onClick={() => { setSelectedId(null); setPendingSplitDir(null); }}>
+          <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} className="drop-shadow-lg max-w-full h-auto" onClick={() => setSelectedId(null)}>
             <rect x="0" y="0" width={svgW} height={svgH} rx="3" fill={c.frame} />
             {renderNode(rootNode, innerX, innerY, innerW, innerH)}
           </svg>
@@ -399,42 +399,17 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
               </>
             )}
 
-            {/* Split this pane - Step 1: Choose direction */}
+            {/* Split this pane - auto splits into 2 */}
             <div className="space-y-2 pt-2 border-t">
               <Label className="text-xs font-medium">Ndaj këtë pjesë</Label>
-              {!pendingSplitDir ? (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => { setPendingSplitDir('vertical'); setSplitCount(2); }}>
-                    <Columns2 className="h-4 w-4 mr-1.5" /> Vertikalisht
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => { setPendingSplitDir('horizontal'); setSplitCount(2); }}>
-                    <Rows2 className="h-4 w-4 mr-1.5" /> Horizontalisht
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2 p-3 rounded-md bg-background border">
-                  <p className="text-xs text-muted-foreground">
-                    Ndarje {pendingSplitDir === 'vertical' ? 'vertikale' : 'horizontale'}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs whitespace-nowrap">Sa pjesë?</Label>
-                    <Input
-                      type="number"
-                      value={splitCount}
-                      onChange={(e) => setSplitCount(Number(e.target.value))}
-                      className="w-16 h-8 text-xs"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="default" size="sm" className="text-xs flex-1 h-8" onClick={handleSplitConfirm}>
-                      Ndaj
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => setPendingSplitDir(null)}>
-                      Anulo
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => handleSplit('vertical')}>
+                  <Columns2 className="h-4 w-4 mr-1.5" /> Vertikalisht
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => handleSplit('horizontal')}>
+                  <Rows2 className="h-4 w-4 mr-1.5" /> Horizontalisht
+                </Button>
+              </div>
             </div>
 
             {/* Sizes in cm - freely editable */}
