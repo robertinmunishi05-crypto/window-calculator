@@ -42,9 +42,6 @@ const COLOR_MAP: Record<WindowColor, { frame: string; glass: string; accent: str
 
 const WindowEditor = ({ rootNode, onChange, color, width, height, productType }: WindowEditorProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Split flow: null = no split pending, 'vertical'|'horizontal' = direction chosen, waiting for count
-  const [pendingSplitDir, setPendingSplitDir] = useState<'vertical' | 'horizontal' | null>(null);
-  const [splitCount, setSplitCount] = useState(2);
   const c = COLOR_MAP[color];
 
   const maxW = 500;
