@@ -184,7 +184,7 @@ function collectLinearMeters(
 ) {
   if (node.type === 'pane') {
     const config = node.paneConfig;
-    if (config && (config.elementType === 'opening' || config.elementType === 'door')) {
+    if (config && (config.elementType === 'opening' || config.elementType === 'door' || config.elementType === 'slider')) {
       const perimeter = 2 * (widthMm + heightMm);
       acc.openingFrames += perimeter;
     }
@@ -241,7 +241,7 @@ export function describeNode(node: WindowNode): string {
   if (node.type === 'pane' && node.paneConfig) {
     const config = node.paneConfig;
     let desc = ELEMENT_TYPE_LABELS[config.elementType];
-    if (config.elementType === 'opening' && config.openingDirection) {
+    if ((config.elementType === 'opening' || config.elementType === 'slider') && config.openingDirection) {
       desc += ` (${OPENING_DIRECTION_LABELS[config.openingDirection]})`;
     }
     if (config.elementType === 'door' && config.doorFill) {
