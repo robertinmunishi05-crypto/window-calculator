@@ -104,7 +104,7 @@ export function createDefaultRootNode(): WindowNode {
 
 export function createDefaultItem(productType: ProductType = 'window'): ConfigItem {
   const defaultPaneConfig: PaneConfig = productType === 'door'
-    ? { elementType: 'door', openingDirection: 'left', doorFill: 'glass' }
+    ? { elementType: 'fixed', doorFill: 'panel' as any }
     : { elementType: 'fixed' };
   return {
     id: crypto.randomUUID(),
@@ -147,16 +147,12 @@ export function updateNode(root: WindowNode, id: string, updater: (node: WindowN
 export function splitNode(node: WindowNode, direction: SplitDirection, totalSize: number, numParts: number = 2): WindowNode {
   const partSize = Math.round(totalSize / numParts);
   const sizes = Array(numParts).fill(partSize);
-  // Adjust last to account for rounding
   sizes[numParts - 1] = totalSize - partSize * (numParts - 1);
 
   const children: WindowNode[] = [];
   for (let i = 0; i < numParts; i++) {
-    if (i === 0 && node.type === 'pane') {
-      children.push({ ...node, id: crypto.randomUUID() });
-    } else {
-      children.push(createPaneNode());
-    }
+    // All new parts start as fixed (static)
+    children.push(createPaneNode());
   }
 
   return {
@@ -236,10 +232,106 @@ export function calculateLinearMeters(item: ConfigItem): LinearMeterResult {
   };
 }
 
+// ===== GLASS / PANEL SIZE CALCULATION =====
+export interface GlassPanelSize {
+  label: string;
+  widthCm: number;
+  heightCm: number;
+  widthMm: number;
+  heightMm: number;
+  type: 'glass' | 'panel';
+}
+
+function collectGlassPanelSizes(
+  node: WindowNode,
+  widthMm: number,
+  heightMm: number,
+  acc: GlassPanelSize[],
+  index: { count: number }
+) {
+  if (node.type === 'pane') {
+    const config = node.paneConfig;
+    if (!config) return;
+    
+    const deduction = 3; // 3mm total (1.5mm each side)
+    const glassW = widthMm - deduction;
+    const glassH = heightMm - deduction;
+
+    if (config.doorFill === 'panel') {
+      index.count++;
+      acc.push({
+        label: `Panel ${index.count}`,
+        widthMm: glassW,
+        heightMm: glassH,
+        widthCm: glassW / 10,
+        heightCm: glassH / 10,
+        type: 'panel',
+      });
+    } else if (config.elementType === 'door' && config.doorFill === 'combo' && config.doorComboRatio) {
+      const panelRatio = config.doorComboRatio / 100;
+      const panelOnTop = config.doorComboPosition === 'panel-top';
+      const panelH = heightMm * panelRatio - deduction;
+      const glassPartH = heightMm * (1 - panelRatio) - deduction;
+      index.count++;
+      acc.push({
+        label: `Panel ${index.count}`,
+        widthMm: glassW,
+        heightMm: panelH,
+        widthCm: glassW / 10,
+        heightCm: panelH / 10,
+        type: 'panel',
+      });
+      index.count++;
+      acc.push({
+        label: `Xham ${index.count}`,
+        widthMm: glassW,
+        heightMm: glassPartH,
+        widthCm: glassW / 10,
+        heightCm: glassPartH / 10,
+        type: 'glass',
+      });
+    } else {
+      index.count++;
+      acc.push({
+        label: `Xham ${index.count}`,
+        widthMm: glassW,
+        heightMm: glassH,
+        widthCm: glassW / 10,
+        heightCm: glassH / 10,
+        type: 'glass',
+      });
+    }
+    return;
+  }
+
+  if (node.type === 'split' && node.children && node.sizes) {
+    const totalSize = node.sizes.reduce((a, b) => a + b, 0);
+    node.children.forEach((child, i) => {
+      const childSize = node.sizes![i] || 0;
+      let childW: number, childH: number;
+      if (node.direction === 'vertical') {
+        childW = childSize;
+        childH = heightMm;
+      } else {
+        childW = widthMm;
+        childH = childSize;
+      }
+      collectGlassPanelSizes(child, childW, childH, acc, index);
+    });
+  }
+}
+
+export function calculateGlassPanelSizes(rootNode: WindowNode, widthMm: number, heightMm: number): GlassPanelSize[] {
+  const acc: GlassPanelSize[] = [];
+  collectGlassPanelSizes(rootNode, widthMm, heightMm, acc, { count: 0 });
+  return acc;
+}
+
 // ===== DESCRIBE NODE FOR PDF =====
 export function describeNode(node: WindowNode): string {
   if (node.type === 'pane' && node.paneConfig) {
     const config = node.paneConfig;
+    if (config.doorFill === 'panel' && config.elementType === 'fixed') return 'Panel';
     let desc = ELEMENT_TYPE_LABELS[config.elementType];
     if ((config.elementType === 'opening' || config.elementType === 'slider') && config.openingDirection) {
       desc += ` (${OPENING_DIRECTION_LABELS[config.openingDirection]})`;

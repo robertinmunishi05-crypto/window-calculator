@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ import {
   createPaneNode,
 } from "@/types/configurator";
 import { cn } from "@/lib/utils";
-import { Edit3, Columns2, Rows2, Trash2, Plus } from "lucide-react";
+import { Edit3, Columns2, Rows2, Trash2, Plus, Undo2 } from "lucide-react";
 
 interface WindowEditorProps {
   rootNode: WindowNode;
@@ -42,6 +42,7 @@ const COLOR_MAP: Record<WindowColor, { frame: string; glass: string; accent: str
 
 const WindowEditor = ({ rootNode, onChange, color, width, height, productType }: WindowEditorProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [history, setHistory] = useState<WindowNode[]>([]);
   const c = COLOR_MAP[color];
 
   const maxW = 500;
@@ -59,6 +60,23 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
 
   const selectedNode = selectedId ? findNode(rootNode, selectedId) : null;
 
+  const pushHistory = () => {
+    setHistory(prev => [...prev.slice(-20), rootNode]);
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory(h => h.slice(0, -1));
+    onChange(prev);
+    setSelectedId(null);
+  };
+
+  const applyChange = (newRoot: WindowNode) => {
+    pushHistory();
+    onChange(newRoot);
+  };
+
   const findParentSplit = (root: WindowNode, targetId: string): WindowNode | null => {
     if (root.type === 'split' && root.children) {
       for (const child of root.children) {
@@ -70,13 +88,40 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
     return null;
   };
 
-  const handleSplit = (direction: 'vertical' | 'horizontal') => {
+  const handleSplitWithCount = (direction: 'vertical' | 'horizontal', count: number) => {
     if (!selectedId) return;
     const node = findNode(rootNode, selectedId);
     if (!node || node.type !== 'pane') return;
     const size = direction === 'vertical' ? width : height;
-    const newRoot = updateNode(rootNode, selectedId, (n) => splitNode(n, direction, size, 2));
-    onChange(newRoot);
+    const newRoot = updateNode(rootNode, selectedId, (n) => splitNode(n, direction, size, count));
+    applyChange(newRoot);
+  };
+
+  const handleResplit = (splitId: string, newCount: number) => {
+    if (newCount < 2) return;
+    const splitNodeFound = findNode(rootNode, splitId);
+    if (!splitNodeFound || splitNodeFound.type !== 'split') return;
+    const dir = splitNodeFound.direction!;
+    const totalSize = splitNodeFound.sizes!.reduce((a, b) => a + b, 0);
+    const partSize = Math.round(totalSize / newCount);
+    const sizes = Array(newCount).fill(partSize);
+    sizes[newCount - 1] = totalSize - partSize * (newCount - 1);
+    const children: WindowNode[] = [];
+    for (let i = 0; i < newCount; i++) {
+      if (i < splitNodeFound.children!.length) {
+        children.push(splitNodeFound.children![i]);
+      } else {
+        children.push(createPaneNode());
+      }
+    }
+    const newRoot = updateNode(rootNode, splitId, () => ({
+      id: splitId,
+      type: 'split' as const,
+      direction: dir,
+      sizes,
+      children,
+    }));
+    applyChange(newRoot);
   };
 
   const handleDeletePane = () => {
@@ -84,6 +129,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
     const parent = findParentSplit(rootNode, selectedId);
     if (!parent || !parent.children || !parent.sizes) return;
 
+    pushHistory();
     if (parent.children.length <= 2) {
       const otherChild = parent.children.find(c => c.id !== selectedId);
       if (otherChild) {
@@ -105,11 +151,11 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
       onChange(newRoot);
     }
     setSelectedId(null);
-    
   };
 
   const handlePaneConfigChange = (config: Partial<PaneConfig>) => {
     if (!selectedId) return;
+    pushHistory();
     const newRoot = updateNode(rootNode, selectedId, (n) => ({
       ...n,
       paneConfig: { ...n.paneConfig!, ...config },
@@ -129,6 +175,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
   };
 
   const addChildToSplit = (splitId: string) => {
+    pushHistory();
     const newRoot = updateNode(rootNode, splitId, (n) => {
       if (!n.children || !n.sizes) return n;
       const totalSize = n.sizes.reduce((a, b) => a + b, 0);
@@ -148,10 +195,8 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
   const isRootNode = selectedId === rootNode.id;
   const parentSplit = selectedId ? findParentSplit(rootNode, selectedId) : null;
 
-  // Window element types
   const windowElementTypes: ElementType[] = ['fixed', 'opening', 'slider'];
 
-  // Recursive SVG renderer
   const renderNode = (node: WindowNode, x: number, y: number, w: number, h: number): React.ReactNode => {
     if (node.type === 'pane') {
       const isSelected = selectedId === node.id;
@@ -211,6 +256,11 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
         <CardTitle className="flex items-center gap-2 text-base">
           <Edit3 className="h-4 w-4" />
           {productType === 'door' ? 'Editor i Derës' : 'Editor i Dritares'}
+          {history.length > 0 && (
+            <Button variant="ghost" size="sm" className="ml-auto h-7 text-xs gap-1" onClick={handleUndo}>
+              <Undo2 className="h-3.5 w-3.5" /> Kthim
+            </Button>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -225,7 +275,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
         {/* Dimensions label */}
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            {(width / 10).toFixed(1)} × {(height / 10).toFixed(1)} cm — {((width / 1000) * (height / 1000)).toFixed(2)} m² — {COLOR_LABELS[color]}
+            {(width / 10).toFixed(1)} × {(height / 10).toFixed(1)} cm — {COLOR_LABELS[color]}
           </p>
         </div>
 
@@ -234,9 +284,6 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
           <div className="text-center py-3 rounded-lg border border-dashed border-muted-foreground/30">
             <p className="text-sm text-muted-foreground">
               👆 Kliko mbi {productType === 'door' ? 'derën' : 'dritaren'} për ta edituar
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Mund ta ndash në pjesë, të zgjedhësh tipin, dhe të konfigurosh sipas dëshirës
             </p>
           </div>
         )}
@@ -260,72 +307,58 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
             {productType === 'door' && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Drejtimi i hapjes</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {(['left', 'right'] as OpeningDirection[]).map(d => (
-                      <Button
-                        key={d}
-                        variant={selectedNode.paneConfig?.openingDirection === d ? 'default' : 'outline'}
-                        size="sm"
-                        className="text-xs h-9"
-                        onClick={() => handlePaneConfigChange({ elementType: 'door', openingDirection: d })}
-                      >
-                        {d === 'left' ? '← Majtas' : 'Djathtas →'}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Mbushja e derës</Label>
+                  <Label className="text-xs font-medium">Tipi i kësaj pjese</Label>
                   <div className="grid grid-cols-3 gap-1.5">
-                    {(['glass', 'panel', 'combo'] as DoorFillType[]).map(f => (
-                      <Button
-                        key={f}
-                        variant={selectedNode.paneConfig?.doorFill === f ? 'default' : 'outline'}
-                        size="sm"
-                        className="text-xs h-9"
-                        onClick={() => handlePaneConfigChange({
-                          doorFill: f,
-                          doorComboRatio: f === 'combo' ? 50 : undefined,
-                          doorComboPosition: f === 'combo' ? 'panel-bottom' : undefined,
-                        })}
+                    {(['panel', 'glass', 'door'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          if (t === 'door') {
+                            handlePaneConfigChange({
+                              elementType: 'door',
+                              openingDirection: selectedNode.paneConfig?.openingDirection || 'left',
+                              doorFill: 'glass',
+                            });
+                          } else if (t === 'glass') {
+                            handlePaneConfigChange({ elementType: 'fixed', doorFill: undefined });
+                          } else {
+                            handlePaneConfigChange({ elementType: 'fixed', doorFill: 'panel' as any });
+                          }
+                        }}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-md border-2 transition-all text-xs",
+                          (t === 'panel' && selectedNode.paneConfig?.doorFill === 'panel') ||
+                          (t === 'glass' && selectedNode.paneConfig?.elementType === 'fixed' && selectedNode.paneConfig?.doorFill !== 'panel') ||
+                          (t === 'door' && selectedNode.paneConfig?.elementType === 'door')
+                            ? "border-primary bg-primary/10 font-semibold"
+                            : "border-border hover:border-primary/40"
+                        )}
                       >
-                        {DOOR_FILL_LABELS[f]}
-                      </Button>
+                        <span className="text-lg">{t === 'panel' ? '▬' : t === 'glass' ? '◻' : '🚪'}</span>
+                        <span>{t === 'panel' ? 'Panel' : t === 'glass' ? 'Xham' : 'Derë'}</span>
+                      </button>
                     ))}
                   </div>
-
-                  {selectedNode.paneConfig?.doorFill === 'combo' && (
-                    <div className="space-y-2 p-3 rounded-md bg-background border">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Pozicioni i panelit</Label>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {(['panel-bottom', 'panel-top'] as DoorComboPosition[]).map(pos => (
-                            <Button
-                              key={pos}
-                              variant={selectedNode.paneConfig?.doorComboPosition === pos ? 'default' : 'outline'}
-                              size="sm"
-                              className="text-xs h-8"
-                              onClick={() => handlePaneConfigChange({ doorComboPosition: pos })}
-                            >
-                              {DOOR_COMBO_POSITION_LABELS[pos]}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs whitespace-nowrap">Panel %</Label>
-                        <Input
-                          type="number"
-                          value={selectedNode.paneConfig.doorComboRatio ?? 50}
-                          onChange={(e) => handlePaneConfigChange({ doorComboRatio: Number(e.target.value) })}
-                          className="w-20 h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
+
+                {selectedNode.paneConfig?.elementType === 'door' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Drejtimi i hapjes</Label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(['left', 'right'] as OpeningDirection[]).map(d => (
+                        <Button
+                          key={d}
+                          variant={selectedNode.paneConfig?.openingDirection === d ? 'default' : 'outline'}
+                          size="sm"
+                          className="text-xs h-9"
+                          onClick={() => handlePaneConfigChange({ openingDirection: d })}
+                        >
+                          {d === 'left' ? '← Majtas' : 'Djathtas →'}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -399,23 +432,76 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
               </>
             )}
 
-            {/* Split this pane - auto splits into 2 */}
+            {/* Split this pane - preset buttons */}
             <div className="space-y-2 pt-2 border-t">
               <Label className="text-xs font-medium">Ndaj këtë pjesë</Label>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => handleSplit('vertical')}>
-                  <Columns2 className="h-4 w-4 mr-1.5" /> Vertikalisht
-                </Button>
-                <Button variant="outline" size="sm" className="text-xs flex-1 h-9" onClick={() => handleSplit('horizontal')}>
-                  <Rows2 className="h-4 w-4 mr-1.5" /> Horizontalisht
-                </Button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground w-6">↕</span>
+                  <div className="flex gap-1 flex-1">
+                    {[2, 3, 4].map(n => (
+                      <Button key={n} variant="outline" size="sm" className="text-xs flex-1 h-8" onClick={() => handleSplitWithCount('vertical', n)}>
+                        {n}
+                      </Button>
+                    ))}
+                    <Input
+                      type="number"
+                      placeholder="+"
+                      className="w-14 h-8 text-xs text-center"
+                      min={2}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = Number((e.target as HTMLInputElement).value);
+                          if (val >= 2) handleSplitWithCount('vertical', val);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground w-6">↔</span>
+                  <div className="flex gap-1 flex-1">
+                    {[2, 3, 4].map(n => (
+                      <Button key={n} variant="outline" size="sm" className="text-xs flex-1 h-8" onClick={() => handleSplitWithCount('horizontal', n)}>
+                        {n}
+                      </Button>
+                    ))}
+                    <Input
+                      type="number"
+                      placeholder="+"
+                      className="w-14 h-8 text-xs text-center"
+                      min={2}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = Number((e.target as HTMLInputElement).value);
+                          if (val >= 2) handleSplitWithCount('horizontal', val);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Sizes in cm - freely editable */}
             {parentSplit && parentSplit.children && parentSplit.sizes && (
               <div className="space-y-2 pt-2 border-t">
-                <Label className="text-xs font-medium">Madhësia e pjesëve (cm)</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Madhësia e pjesëve (cm)</Label>
+                  <div className="flex gap-1">
+                    {[2, 3, 4].map(n => (
+                      <Button
+                        key={n}
+                        variant={parentSplit.children!.length === n ? 'default' : 'outline'}
+                        size="sm"
+                        className="text-xs h-6 w-6 p-0"
+                        onClick={() => handleResplit(parentSplit.id, n)}
+                      >
+                        {n}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   {parentSplit.children.map((child, i) => {
                     const isThis = child.id === selectedId;
@@ -471,12 +557,12 @@ function PaneRenderer({
   const cx = x + w / 2;
   const cy = y + h / 2;
 
+  const isDoorPanel = config.doorFill === 'panel';
   const isDoorCombo = config.elementType === 'door' && config.doorFill === 'combo';
   const panelRatio = (config.doorComboRatio ?? 50) / 100;
   const panelOnTop = config.doorComboPosition === 'panel-top';
   const panelH = isDoorCombo ? h * panelRatio : 0;
   const glassH = isDoorCombo ? h - panelH : h;
-  const isDoorPanel = config.elementType === 'door' && config.doorFill === 'panel';
 
   return (
     <>
@@ -509,7 +595,7 @@ function PaneRenderer({
         </>
       )}
 
-      {config.elementType === 'fixed' && (
+      {config.elementType === 'fixed' && !isDoorPanel && (
         <>
           <line x1={x + 4} y1={y + 4} x2={x + w - 4} y2={y + h - 4} stroke={colors.frame} strokeWidth="1" opacity="0.25" />
           <line x1={x + w - 4} y1={y + 4} x2={x + 4} y2={y + h - 4} stroke={colors.frame} strokeWidth="1" opacity="0.25" />
@@ -540,7 +626,6 @@ function OpeningOverlay({ dir, x, y, w, h, accent }: {
   dir: OpeningDirection; x: number; y: number; w: number; h: number; accent: string;
 }) {
   const cy = y + h / 2;
-
   if (dir === 'left') {
     return (
       <>
@@ -566,7 +651,6 @@ function SliderOverlay({ dir, x, y, w, h, accent }: {
   dir: OpeningDirection; x: number; y: number; w: number; h: number; accent: string;
 }) {
   const cy = y + h / 2;
-  // Slider: horizontal arrows showing sliding direction
   if (dir === 'left') {
     return (
       <>
