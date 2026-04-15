@@ -1,8 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ruler, Palette, ScanLine } from "lucide-react";
-import { ConfigItem, WindowColor, COLOR_LABELS, calculateLinearMeters } from "@/types/configurator";
+import { Ruler, Palette, ScanLine, Maximize2 } from "lucide-react";
+import { ConfigItem, WindowColor, COLOR_LABELS, calculateLinearMeters, calculateGlassPanelSizes, WindowNode } from "@/types/configurator";
 import { cn } from "@/lib/utils";
 import WindowEditor from "./WindowEditor";
 
@@ -19,6 +19,7 @@ const colorOptions: { value: WindowColor; colorClass: string }[] = [
 
 const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
   const linearMeters = calculateLinearMeters(item);
+  const glassPanelSizes = calculateGlassPanelSizes(item.rootNode, item.width, item.height);
 
   return (
     <div className="space-y-4">
@@ -51,20 +52,14 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
               />
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-between">
-            <div className="space-y-1">
-              <Label>Sasia</Label>
-              <Input
-                type="number"
-                value={item.quantity}
-                onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) })}
-                className="w-20"
-              />
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Sipërfaqja</p>
-              <p className="text-lg font-semibold">{((item.width / 1000) * (item.height / 1000)).toFixed(2)} m²</p>
-            </div>
+          <div className="mt-3">
+            <Label>Sasia</Label>
+            <Input
+              type="number"
+              value={item.quantity}
+              onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) })}
+              className="w-20 mt-1"
+            />
           </div>
         </CardContent>
       </Card>
@@ -113,22 +108,22 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <ScanLine className="h-4 w-4" />
-            Metrat Lineare të Profilit
+            Metrat Lineare
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">L — Korniza e jashtme</span>
-              <span className="font-medium">{linearMeters.outerFrame.toFixed(2)} m</span>
+              <span className="text-muted-foreground font-medium">L — Rama (korniza)</span>
+              <span className="font-bold text-base">{linearMeters.outerFrame.toFixed(2)} m</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Ndarjet e brendshme</span>
               <span className="font-medium">{linearMeters.innerDividers.toFixed(2)} m</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Z — Kornizat hapëse</span>
-              <span className="font-medium">{linearMeters.openingFrames.toFixed(2)} m</span>
+              <span className="text-muted-foreground font-medium">Z — Hapësirat (dritaret)</span>
+              <span className="font-bold text-base">{linearMeters.openingFrames.toFixed(2)} m</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10 mt-2">
               <span className="text-sm font-medium">Totali</span>
@@ -137,6 +132,29 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Glass & Panel Sizes */}
+      {glassPanelSizes.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Maximize2 className="h-4 w-4" />
+              Përmasat e Xhamit / Panelit
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-[10px] text-muted-foreground mb-2">Automatikisht -3mm (1.5mm çdo anë)</p>
+            <div className="space-y-1.5">
+              {glassPanelSizes.map((g, i) => (
+                <div key={i} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                  <span className="text-muted-foreground">{g.label}</span>
+                  <span className="font-semibold">{g.widthCm.toFixed(2)} × {g.heightCm.toFixed(2)} cm</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

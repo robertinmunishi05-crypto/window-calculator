@@ -6,6 +6,7 @@ import {
   COLOR_LABELS,
   describeNode,
   calculateLinearMeters,
+  calculateGlassPanelSizes,
   WindowNode,
   WindowColor,
 } from '@/types/configurator';
@@ -21,6 +22,7 @@ function drawNodePDF(
   node: WindowNode,
   x: number, y: number, w: number, h: number,
   color: WindowColor,
+  widthMm: number, heightMm: number,
   frameT: number = 2,
   divT: number = 1.5,
 ) {
@@ -28,7 +30,7 @@ function drawNodePDF(
 
   if (node.type === 'pane' && node.paneConfig) {
     const config = node.paneConfig;
-    const isDoorPanel = config.elementType === 'door' && config.doorFill === 'panel';
+    const isDoorPanel = config.doorFill === 'panel';
     const isDoorCombo = config.elementType === 'door' && config.doorFill === 'combo';
 
     if (isDoorPanel) {
@@ -62,7 +64,7 @@ function drawNodePDF(
     }
 
     // Fixed X
-    if (config.elementType === 'fixed') {
+    if (config.elementType === 'fixed' && !isDoorPanel) {
       doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
       doc.setLineWidth(0.2);
       doc.line(x + 1, y + 1, x + w - 1, y + h - 1);
@@ -82,10 +84,18 @@ function drawNodePDF(
       } else if (dir === 'right') {
         doc.line(cx - 3, cy, cx + 3, cy);
         doc.line(cx + 3, cy, cx + 1, cy - 2);
-      } else if (dir === 'top') {
-        doc.line(cx, cy + 3, cx, cy - 3);
-        doc.line(cx, cy - 3, cx - 2, cy - 1);
       }
+    }
+
+    // Slider arrows
+    if (config.elementType === 'slider') {
+      doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
+      doc.setLineWidth(0.3);
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      doc.line(cx - 4, cy, cx + 4, cy);
+      doc.line(cx - 4, cy, cx - 2, cy - 2);
+      doc.line(cx + 4, cy, cx + 2, cy - 2);
     }
 
     // Door handle
@@ -93,6 +103,33 @@ function drawNodePDF(
       doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
       doc.circle(x + w - 4, y + h / 2, 1, 'F');
     }
+
+    // === DIMENSION LABELS INSIDE ===
+    const deduction = 3;
+    const glassWMm = widthMm - deduction;
+    const glassHMm = heightMm - deduction;
+    const labelW = (glassWMm / 10).toFixed(1);
+    const labelH = (glassHMm / 10).toFixed(1);
+    
+    doc.setFontSize(5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 40, 40);
+    const labelText = `${labelW}×${labelH}`;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    
+    // Background for readability
+    const textW = doc.getTextWidth(labelText);
+    doc.setFillColor(255, 255, 255);
+    doc.rect(cx - textW / 2 - 1, cy - 2.5, textW + 2, 5, 'F');
+    doc.setTextColor(30, 30, 30);
+    doc.text(labelText, cx, cy + 1, { align: 'center' });
+
+    // Type label below dimension
+    const typeLabel = isDoorPanel ? 'PNL' : config.elementType === 'door' ? 'DER' : config.elementType === 'opening' ? 'HAP' : config.elementType === 'slider' ? 'SHB' : 'FIX';
+    doc.setFontSize(4);
+    doc.setFont('helvetica', 'normal');
+    doc.text(typeLabel, cx, cy + 5, { align: 'center' });
 
     // Border
     doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
@@ -108,22 +145,27 @@ function drawNodePDF(
     node.children.forEach((child, i) => {
       const ratio = node.sizes![i] / totalSize;
       let cx: number, cy: number, cw: number, ch: number;
+      let childWMm: number, childHMm: number;
 
       if (node.direction === 'vertical') {
         cx = x + offset;
         cy = y;
         cw = w * ratio;
         ch = h;
+        childWMm = node.sizes![i];
+        childHMm = heightMm;
         offset += cw;
       } else {
         cx = x;
         cy = y + offset;
         cw = w;
         ch = h * ratio;
+        childWMm = widthMm;
+        childHMm = node.sizes![i];
         offset += ch;
       }
 
-      drawNodePDF(doc, child, cx, cy, cw, ch, color, frameT, divT);
+      drawNodePDF(doc, child, cx, cy, cw, ch, color, childWMm, childHMm, frameT, divT);
 
       if (i < node.children!.length - 1) {
         doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
@@ -161,17 +203,20 @@ function drawItemSketch(
   doc.setLineWidth(frameT);
   doc.rect(skX, skY, skW, skH);
 
-  // Draw recursive structure
-  drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color);
+  // Draw recursive structure with real mm dimensions
+  drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height);
 
-  // Dimension annotations
-  doc.setTextColor(80, 80, 80);
-  doc.setFontSize(6);
-  doc.text(`${item.width}×${item.height}mm`, x + maxW / 2, y + maxH + 4, { align: 'center' });
-  doc.text(describeNode(item.rootNode).substring(0, 30), x + maxW / 2, y + maxH + 8, { align: 'center' });
+  // Overall dimension annotation
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`, x + maxW / 2, y + maxH + 5, { align: 'center' });
   
   const lm = calculateLinearMeters(item);
-  doc.text(`${lm.total.toFixed(2)} m profil · x${item.quantity}`, x + maxW / 2, y + maxH + 12, { align: 'center' });
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text(`L=${lm.outerFrame.toFixed(2)}m  Z=${lm.openingFrames.toFixed(2)}m  x${item.quantity}`, x + maxW / 2, y + maxH + 10, { align: 'center' });
 }
 
 export function generatePDF(client: ClientData, items: ConfigItem[]) {
@@ -211,16 +256,15 @@ export function generatePDF(client: ClientData, items: ConfigItem[]) {
   // Table
   y += 12;
   const tableData = items.map((item, i) => {
-    const area = (item.width / 1000) * (item.height / 1000);
     const lm = calculateLinearMeters(item);
-
     return [
       (i + 1).toString(),
       describeNode(item.rootNode),
-      `${item.width} x ${item.height}`,
-      area.toFixed(2),
+      `${(item.width / 10).toFixed(1)} x ${(item.height / 10).toFixed(1)}`,
       COLOR_LABELS[item.color],
       item.quantity.toString(),
+      `L=${lm.outerFrame.toFixed(2)}`,
+      `Z=${lm.openingFrames.toFixed(2)}`,
       `${lm.total.toFixed(2)} m`,
     ];
   });
@@ -231,33 +275,32 @@ export function generatePDF(client: ClientData, items: ConfigItem[]) {
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Konfigurimi', 'Dim. (mm)', 'm²', 'Ngjyra', 'Sasia', 'Profil (m)']],
+    head: [['#', 'Konfigurimi', 'Dim. (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Total (m)']],
     body: tableData,
-    foot: [['', '', '', '', '', 'TOTALI', `${totalLM.toFixed(2)} m`]],
-    styles: { fontSize: 8, cellPadding: 3 },
+    foot: [['', '', '', '', '', '', 'TOTALI', `${totalLM.toFixed(2)} m`]],
+    styles: { fontSize: 7, cellPadding: 2.5 },
     headStyles: { fillColor: [75, 55, 35], textColor: 255 },
     footStyles: { fillColor: [240, 235, 228], textColor: [50, 50, 50], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 243] },
     theme: 'grid',
     columnStyles: {
-      1: { cellWidth: 50 },
+      1: { cellWidth: 40 },
     },
   });
 
-  // Draw sketches - 4 per row on new pages
+  // Draw sketches - 4 per row
   const cols = 4;
   const margin = 15;
   const gap = 8;
   const cellW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
-  const cellH = 50; // sketch height area
-  const rowH = cellH + 18; // extra for text below
+  const cellH = 50;
+  const rowH = cellH + 16;
   const maxRows = Math.floor((pageHeight - 50) / (rowH + gap));
 
   let pageItems = [...items];
   while (pageItems.length > 0) {
     doc.addPage();
 
-    // Header bar
     doc.setFillColor(75, 55, 35);
     doc.rect(0, 0, pageWidth, 25, 'F');
     doc.setTextColor(255, 255, 255);
@@ -278,7 +321,7 @@ export function generatePDF(client: ClientData, items: ConfigItem[]) {
     });
   }
 
-  // Footer on all pages
+  // Footer
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
