@@ -3,7 +3,7 @@ import ClientForm from "@/components/ClientForm";
 import ConfigPanel from "@/components/ConfigPanel";
 import OrderSummary from "@/components/OrderSummary";
 import ThemeToggle from "@/components/ThemeToggle";
-import { ClientData, ConfigItem, ProductType, createDefaultItem } from "@/types/configurator";
+import { ClientData, ConfigItem, ProductType, ProfileSystem, createDefaultItem } from "@/types/configurator";
 import { DoorOpen, LayoutGrid, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const Index = () => {
   const [clientData, setClientData] = useState<ClientData>({ name: '', phone: '', address: '' });
   const [currentItem, setCurrentItem] = useState<ConfigItem | null>(null);
   const [items, setItems] = useState<ConfigItem[]>([]);
+  const [profileSystem, setProfileSystem] = useState<ProfileSystem>({ type: 'veka' });
 
   const handleSelectProductType = (type: ProductType) => {
     setCurrentItem(createDefaultItem(type));
@@ -37,10 +38,6 @@ const Index = () => {
 
   const handleRemoveItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
-  }, []);
-
-  const handleAddNew = useCallback(() => {
-    setCurrentItem(null);
   }, []);
 
   return (
@@ -113,7 +110,12 @@ const Index = () => {
                     <span className="sm:hidden">Reset</span>
                   </Button>
                 </div>
-                <ConfigPanel item={currentItem} onChange={setCurrentItem} />
+                <ConfigPanel
+                  item={currentItem}
+                  onChange={setCurrentItem}
+                  profileSystem={profileSystem}
+                  onProfileChange={setProfileSystem}
+                />
                 <button
                   onClick={handleAddToOrder}
                   className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
@@ -129,8 +131,8 @@ const Index = () => {
               <OrderSummary
                 items={items}
                 clientData={clientData}
+                profileSystem={profileSystem}
                 onRemoveItem={handleRemoveItem}
-                onAddNew={handleAddNew}
               />
             </div>
           </div>

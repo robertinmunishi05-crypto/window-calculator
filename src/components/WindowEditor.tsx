@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,9 +40,21 @@ const COLOR_MAP: Record<WindowColor, { frame: string; glass: string; accent: str
   black: { frame: '#2a2a2a', glass: '#a8c8e0', accent: '#666', panel: '#444' },
 };
 
+interface DragState {
+  splitId: string;
+  dividerIndex: number;
+  direction: 'vertical' | 'horizontal';
+  startPos: number;
+  startSizes: number[];
+  totalPixels: number;
+  totalMm: number;
+}
+
 const WindowEditor = ({ rootNode, onChange, color, width, height, productType }: WindowEditorProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [history, setHistory] = useState<WindowNode[]>([]);
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const c = COLOR_MAP[color];
 
   const maxW = 500;
@@ -164,13 +176,28 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
   };
 
   const handleSizeChangeCm = (splitId: string, childIndex: number, newSizeCm: number) => {
+    const splitNodeFound = findNode(rootNode, splitId);
+    if (!splitNodeFound || !splitNodeFound.sizes) return;
+    
     const newSizeMm = Math.round(newSizeCm * 10);
-    const newRoot = updateNode(rootNode, splitId, (n) => {
-      if (!n.sizes || !n.children) return n;
-      const newSizes = [...n.sizes];
-      newSizes[childIndex] = newSizeMm;
-      return { ...n, sizes: newSizes };
-    });
+    const oldSizeMm = splitNodeFound.sizes[childIndex];
+    const diff = newSizeMm - oldSizeMm;
+    
+    // Find a neighbor to take the difference
+    const newSizes = [...splitNodeFound.sizes];
+    newSizes[childIndex] = newSizeMm;
+    
+    // Distribute difference to next sibling, or previous if last
+    if (childIndex < newSizes.length - 1) {
+      newSizes[childIndex + 1] = Math.max(10, newSizes[childIndex + 1] - diff);
+    } else if (childIndex > 0) {
+      newSizes[childIndex - 1] = Math.max(10, newSizes[childIndex - 1] - diff);
+    }
+    
+    const newRoot = updateNode(rootNode, splitId, (n) => ({
+      ...n,
+      sizes: newSizes,
+    }));
     onChange(newRoot);
   };
 
@@ -192,6 +219,109 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
     onChange(newRoot);
   };
 
+  // ===== DRAG TO RESIZE =====
+  const handleDividerMouseDown = (
+    e: React.MouseEvent,
+    splitId: string,
+    dividerIndex: number,
+    direction: 'vertical' | 'horizontal',
+    totalPixels: number,
+    sizes: number[],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    pushHistory();
+    const totalMm = sizes.reduce((a, b) => a + b, 0);
+    setDragState({
+      splitId,
+      dividerIndex,
+      direction,
+      startPos: direction === 'vertical' ? e.clientX : e.clientY,
+      startSizes: [...sizes],
+      totalPixels,
+      totalMm,
+    });
+  };
+
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const currentPos = dragState.direction === 'vertical' ? e.clientX : e.clientY;
+      const deltaPixels = currentPos - dragState.startPos;
+      const deltaMm = (deltaPixels / dragState.totalPixels) * dragState.totalMm;
+
+      const idx = dragState.dividerIndex;
+      const newSizes = [...dragState.startSizes];
+      const newLeft = dragState.startSizes[idx] + deltaMm;
+      const newRight = dragState.startSizes[idx + 1] - deltaMm;
+
+      // Minimum 2cm (20mm) per section
+      const minSize = 20;
+      if (newLeft >= minSize && newRight >= minSize) {
+        newSizes[idx] = Math.round(newLeft);
+        newSizes[idx + 1] = Math.round(newRight);
+
+        const newRoot = updateNode(rootNode, dragState.splitId, (n) => ({
+          ...n,
+          sizes: newSizes,
+        }));
+        onChange(newRoot);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setDragState(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState, rootNode, onChange]);
+
+  // Touch support for mobile drag
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const currentPos = dragState.direction === 'vertical' ? touch.clientX : touch.clientY;
+      const deltaPixels = currentPos - dragState.startPos;
+      const deltaMm = (deltaPixels / dragState.totalPixels) * dragState.totalMm;
+
+      const idx = dragState.dividerIndex;
+      const newSizes = [...dragState.startSizes];
+      const newLeft = dragState.startSizes[idx] + deltaMm;
+      const newRight = dragState.startSizes[idx + 1] - deltaMm;
+
+      const minSize = 20;
+      if (newLeft >= minSize && newRight >= minSize) {
+        newSizes[idx] = Math.round(newLeft);
+        newSizes[idx + 1] = Math.round(newRight);
+
+        const newRoot = updateNode(rootNode, dragState.splitId, (n) => ({
+          ...n,
+          sizes: newSizes,
+        }));
+        onChange(newRoot);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      setDragState(null);
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [dragState, rootNode, onChange]);
+
   const isRootNode = selectedId === rootNode.id;
   const parentSplit = selectedId ? findParentSplit(rootNode, selectedId) : null;
 
@@ -212,6 +342,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
       const totalSize = node.sizes.reduce((a, b) => a + b, 0);
       const elements: React.ReactNode[] = [];
       let offset = 0;
+      const totalPx = node.direction === 'vertical' ? w : h;
 
       node.children.forEach((child, i) => {
         const r = node.sizes![i] / totalSize;
@@ -232,11 +363,70 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
           offset += h * r;
         }
         elements.push(renderNode(child, cx, cy, cw, ch));
+
+        // Draggable divider
         if (i < node.children!.length - 1) {
+          const divHitSize = 14; // larger hit area
           if (node.direction === 'vertical') {
-            elements.push(<rect key={`div-${node.id}-${i}`} x={x + offset - dividerT / 2} y={y} width={dividerT} height={h} fill={c.frame} />);
+            const divX = x + offset - dividerT / 2;
+            elements.push(
+              <g key={`div-${node.id}-${i}`}>
+                <rect x={divX} y={y} width={dividerT} height={h} fill={c.frame} />
+                <rect
+                  x={divX - (divHitSize - dividerT) / 2}
+                  y={y}
+                  width={divHitSize}
+                  height={h}
+                  fill="transparent"
+                  className="cursor-col-resize"
+                  onMouseDown={(e) => handleDividerMouseDown(e, node.id, i, 'vertical', totalPx, [...node.sizes!])}
+                  onTouchStart={(e) => {
+                    const touch = e.touches[0];
+                    e.stopPropagation();
+                    pushHistory();
+                    setDragState({
+                      splitId: node.id,
+                      dividerIndex: i,
+                      direction: 'vertical',
+                      startPos: touch.clientX,
+                      startSizes: [...node.sizes!],
+                      totalPixels: totalPx,
+                      totalMm: node.sizes!.reduce((a, b) => a + b, 0),
+                    });
+                  }}
+                />
+              </g>
+            );
           } else {
-            elements.push(<rect key={`div-${node.id}-${i}`} x={x} y={y + offset - dividerT / 2} width={w} height={dividerT} fill={c.frame} />);
+            const divY = y + offset - dividerT / 2;
+            elements.push(
+              <g key={`div-${node.id}-${i}`}>
+                <rect x={x} y={divY} width={w} height={dividerT} fill={c.frame} />
+                <rect
+                  x={x}
+                  y={divY - (divHitSize - dividerT) / 2}
+                  width={w}
+                  height={divHitSize}
+                  fill="transparent"
+                  className="cursor-row-resize"
+                  onMouseDown={(e) => handleDividerMouseDown(e, node.id, i, 'horizontal', totalPx, [...node.sizes!])}
+                  onTouchStart={(e) => {
+                    const touch = e.touches[0];
+                    e.stopPropagation();
+                    pushHistory();
+                    setDragState({
+                      splitId: node.id,
+                      dividerIndex: i,
+                      direction: 'horizontal',
+                      startPos: touch.clientY,
+                      startSizes: [...node.sizes!],
+                      totalPixels: totalPx,
+                      totalMm: node.sizes!.reduce((a, b) => a + b, 0),
+                    });
+                  }}
+                />
+              </g>
+            );
           }
         }
       });
@@ -266,7 +456,14 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
       <CardContent className="space-y-4">
         {/* SVG Preview */}
         <div className="flex justify-center bg-muted/30 rounded-lg p-4 overflow-x-auto">
-          <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} className="drop-shadow-lg max-w-full h-auto" onClick={() => setSelectedId(null)}>
+          <svg
+            ref={svgRef}
+            width={svgW}
+            height={svgH}
+            viewBox={`0 0 ${svgW} ${svgH}`}
+            className={cn("drop-shadow-lg max-w-full h-auto", dragState && "select-none")}
+            onClick={() => !dragState && setSelectedId(null)}
+          >
             <rect x="0" y="0" width={svgW} height={svgH} rx="3" fill={c.frame} />
             {renderNode(rootNode, innerX, innerY, innerW, innerH)}
           </svg>
@@ -277,13 +474,21 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
           <p className="text-xs text-muted-foreground">
             {(width / 10).toFixed(1)} × {(height / 10).toFixed(1)} cm — {COLOR_LABELS[color]}
           </p>
+          {dragState && (
+            <p className="text-xs text-primary font-medium mt-1 animate-pulse">
+              🔄 Duke ndryshuar madhësinë... lësho për të konfirmuar
+            </p>
+          )}
         </div>
 
         {/* Help text */}
-        {!selectedNode && (
+        {!selectedNode && !dragState && (
           <div className="text-center py-3 rounded-lg border border-dashed border-muted-foreground/30">
             <p className="text-sm text-muted-foreground">
               👆 Kliko mbi {productType === 'door' ? 'derën' : 'dritaren'} për ta edituar
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              ↔ Tërhiq ndarjet për të ndryshuar madhësinë
             </p>
           </div>
         )}
