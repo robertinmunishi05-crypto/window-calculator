@@ -1,14 +1,20 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ruler, Palette, ScanLine, Maximize2 } from "lucide-react";
-import { ConfigItem, WindowColor, COLOR_LABELS, calculateLinearMeters, calculateGlassPanelSizes, WindowNode } from "@/types/configurator";
+import { Ruler, Palette, ScanLine, Maximize2, Settings2 } from "lucide-react";
+import {
+  ConfigItem, WindowColor, COLOR_LABELS,
+  calculateLinearMeters, calculateGlassPanelSizes,
+  ProfileSystem, ProfileSystemType, PROFILE_SYSTEMS, getFrameThicknessCm,
+} from "@/types/configurator";
 import { cn } from "@/lib/utils";
 import WindowEditor from "./WindowEditor";
 
 interface ConfigPanelProps {
   item: ConfigItem;
   onChange: (item: ConfigItem) => void;
+  profileSystem: ProfileSystem;
+  onProfileChange: (ps: ProfileSystem) => void;
 }
 
 const colorOptions: { value: WindowColor; colorClass: string }[] = [
@@ -17,12 +23,61 @@ const colorOptions: { value: WindowColor; colorClass: string }[] = [
   { value: 'black', colorClass: 'bg-window-black' },
 ];
 
-const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
+const ConfigPanel = ({ item, onChange, profileSystem, onProfileChange }: ConfigPanelProps) => {
+  const frameThicknessMm = getFrameThicknessCm(profileSystem) * 10;
   const linearMeters = calculateLinearMeters(item);
-  const glassPanelSizes = calculateGlassPanelSizes(item.rootNode, item.width, item.height);
+  const glassPanelSizes = calculateGlassPanelSizes(item.rootNode, item.width, item.height, frameThicknessMm);
 
   return (
     <div className="space-y-4">
+      {/* Profile System */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Settings2 className="h-4 w-4" />
+            Sistemi i Profilit
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(PROFILE_SYSTEMS) as ProfileSystemType[]).map(key => (
+              <button
+                key={key}
+                onClick={() => onProfileChange({ ...profileSystem, type: key })}
+                className={cn(
+                  "flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-xs",
+                  profileSystem.type === key
+                    ? "border-primary bg-primary/10 font-semibold"
+                    : "border-border hover:border-primary/40"
+                )}
+              >
+                <span className="font-bold text-sm">{PROFILE_SYSTEMS[key].label}</span>
+                <span className="text-muted-foreground">
+                  {key === 'other' && profileSystem.customFrameThicknessCm
+                    ? `${profileSystem.customFrameThicknessCm} cm`
+                    : `${PROFILE_SYSTEMS[key].frameThicknessCm} cm`
+                  }
+                </span>
+              </button>
+            ))}
+          </div>
+          {profileSystem.type === 'other' && (
+            <div className="mt-3 flex items-center gap-2">
+              <Label className="text-xs whitespace-nowrap">Trashësia e kornizës</Label>
+              <Input
+                type="number"
+                value={profileSystem.customFrameThicknessCm ?? ''}
+                onChange={(e) => onProfileChange({ ...profileSystem, customFrameThicknessCm: Number(e.target.value) })}
+                placeholder="cm"
+                className="w-24 h-8 text-xs"
+                step="0.1"
+              />
+              <span className="text-xs text-muted-foreground">cm</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Dimensions */}
       <Card>
         <CardHeader className="pb-3">
@@ -143,7 +198,9 @@ const ConfigPanel = ({ item, onChange }: ConfigPanelProps) => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground mb-2">Automatikisht -3mm (1.5mm çdo anë)</p>
+            <p className="text-[10px] text-muted-foreground mb-2">
+              Automatikisht -3mm (1.5mm çdo anë) · Profili: {getFrameThicknessCm(profileSystem)} cm
+            </p>
             <div className="space-y-1.5">
               {glassPanelSizes.map((g, i) => (
                 <div key={i} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">

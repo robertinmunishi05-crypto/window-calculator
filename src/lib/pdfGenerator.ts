@@ -9,6 +9,8 @@ import {
   calculateGlassPanelSizes,
   WindowNode,
   WindowColor,
+  ProfileSystem,
+  getFrameThicknessCm,
 } from '@/types/configurator';
 
 const COLOR_MAP: Record<WindowColor, { frame: number[]; glass: number[]; accent: number[]; panel: number[] }> = {
@@ -17,14 +19,12 @@ const COLOR_MAP: Record<WindowColor, { frame: number[]; glass: number[]; accent:
   black: { frame: [42, 42, 42], glass: [168, 200, 224], accent: [102, 102, 102], panel: [68, 68, 68] },
 };
 
+// ===== DRAW NODE =====
 function drawNodePDF(
-  doc: jsPDF,
-  node: WindowNode,
+  doc: jsPDF, node: WindowNode,
   x: number, y: number, w: number, h: number,
-  color: WindowColor,
-  widthMm: number, heightMm: number,
-  frameT: number = 2,
-  divT: number = 1.5,
+  color: WindowColor, widthMm: number, heightMm: number,
+  showGlassSizes: boolean = false,
 ) {
   const c = COLOR_MAP[color];
 
@@ -33,6 +33,7 @@ function drawNodePDF(
     const isDoorPanel = config.doorFill === 'panel';
     const isDoorCombo = config.elementType === 'door' && config.doorFill === 'combo';
 
+    // Fill
     if (isDoorPanel) {
       doc.setFillColor(c.panel[0], c.panel[1], c.panel[2]);
       doc.rect(x, y, w, h, 'F');
@@ -40,96 +41,80 @@ function drawNodePDF(
       const panelRatio = (config.doorComboRatio ?? 50) / 100;
       const panelOnTop = config.doorComboPosition === 'panel-top';
       if (panelOnTop) {
-        const panelH = h * panelRatio;
+        const pH = h * panelRatio;
         doc.setFillColor(c.panel[0], c.panel[1], c.panel[2]);
-        doc.rect(x, y, w, panelH, 'F');
+        doc.rect(x, y, w, pH, 'F');
         doc.setFillColor(c.glass[0], c.glass[1], c.glass[2]);
-        doc.rect(x, y + panelH, w, h - panelH, 'F');
+        doc.rect(x, y + pH, w, h - pH, 'F');
         doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
         doc.setLineWidth(0.3);
-        doc.line(x, y + panelH, x + w, y + panelH);
+        doc.line(x, y + pH, x + w, y + pH);
       } else {
-        const glassH = h * (1 - panelRatio);
+        const gH = h * (1 - panelRatio);
         doc.setFillColor(c.glass[0], c.glass[1], c.glass[2]);
-        doc.rect(x, y, w, glassH, 'F');
+        doc.rect(x, y, w, gH, 'F');
         doc.setFillColor(c.panel[0], c.panel[1], c.panel[2]);
-        doc.rect(x, y + glassH, w, h * panelRatio, 'F');
+        doc.rect(x, y + gH, w, h * panelRatio, 'F');
         doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
         doc.setLineWidth(0.3);
-        doc.line(x, y + glassH, x + w, y + glassH);
+        doc.line(x, y + gH, x + w, y + gH);
       }
     } else {
       doc.setFillColor(c.glass[0], c.glass[1], c.glass[2]);
       doc.rect(x, y, w, h, 'F');
     }
 
-    // Fixed X
+    // Indicators
     if (config.elementType === 'fixed' && !isDoorPanel) {
       doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
       doc.setLineWidth(0.2);
       doc.line(x + 1, y + 1, x + w - 1, y + h - 1);
       doc.line(x + w - 1, y + 1, x + 1, y + h - 1);
     }
-
-    // Opening arrow
     if (config.elementType === 'opening') {
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
       doc.setLineWidth(0.3);
-      const cx = x + w / 2;
-      const cy = y + h / 2;
+      const cx = x + w / 2, cy = y + h / 2;
       const dir = config.openingDirection || 'left';
-      if (dir === 'left') {
-        doc.line(cx + 3, cy, cx - 3, cy);
-        doc.line(cx - 3, cy, cx - 1, cy - 2);
-      } else if (dir === 'right') {
-        doc.line(cx - 3, cy, cx + 3, cy);
-        doc.line(cx + 3, cy, cx + 1, cy - 2);
-      }
+      if (dir === 'left') { doc.line(cx + 3, cy, cx - 3, cy); doc.line(cx - 3, cy, cx - 1, cy - 2); }
+      else { doc.line(cx - 3, cy, cx + 3, cy); doc.line(cx + 3, cy, cx + 1, cy - 2); }
     }
-
-    // Slider arrows
     if (config.elementType === 'slider') {
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
       doc.setLineWidth(0.3);
-      const cx = x + w / 2;
-      const cy = y + h / 2;
+      const cx = x + w / 2, cy = y + h / 2;
       doc.line(cx - 4, cy, cx + 4, cy);
       doc.line(cx - 4, cy, cx - 2, cy - 2);
       doc.line(cx + 4, cy, cx + 2, cy - 2);
     }
-
-    // Door handle
     if (config.elementType === 'door') {
       doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
       doc.circle(x + w - 4, y + h / 2, 1, 'F');
     }
 
-    // === DIMENSION LABELS INSIDE ===
-    const deduction = 3;
-    const glassWMm = widthMm - deduction;
-    const glassHMm = heightMm - deduction;
-    const labelW = (glassWMm / 10).toFixed(1);
-    const labelH = (glassHMm / 10).toFixed(1);
-    
-    doc.setFontSize(5.5);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(40, 40, 40);
-    const labelText = `${labelW}×${labelH}`;
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    
-    // Background for readability
-    const textW = doc.getTextWidth(labelText);
-    doc.setFillColor(255, 255, 255);
-    doc.rect(cx - textW / 2 - 1, cy - 2.5, textW + 2, 5, 'F');
-    doc.setTextColor(30, 30, 30);
-    doc.text(labelText, cx, cy + 1, { align: 'center' });
+    // Glass size labels (company PDF)
+    if (showGlassSizes) {
+      const glassTolerance = 3;
+      const glassW = widthMm - glassTolerance;
+      const glassH = heightMm - glassTolerance;
+      const labelW = (glassW / 10).toFixed(1);
+      const labelH = (glassH / 10).toFixed(1);
+      const labelText = `${labelW}×${labelH}`;
+      const cx = x + w / 2, cy = y + h / 2;
 
-    // Type label below dimension
-    const typeLabel = isDoorPanel ? 'PNL' : config.elementType === 'door' ? 'DER' : config.elementType === 'opening' ? 'HAP' : config.elementType === 'slider' ? 'SHB' : 'FIX';
-    doc.setFontSize(4);
-    doc.setFont('helvetica', 'normal');
-    doc.text(typeLabel, cx, cy + 5, { align: 'center' });
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'bold');
+      const textW = doc.getTextWidth(labelText);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(cx - textW / 2 - 1.5, cy - 3, textW + 3, 6, 'F');
+      doc.setTextColor(30, 30, 30);
+      doc.text(labelText, cx, cy + 1.5, { align: 'center' });
+
+      const typeLabel = isDoorPanel ? 'PNL' : config.elementType === 'door' ? 'DER' : config.elementType === 'opening' ? 'HAP' : config.elementType === 'slider' ? 'SHB' : 'FIX';
+      doc.setFontSize(4.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(typeLabel, cx, cy + 5.5, { align: 'center' });
+    }
 
     // Border
     doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
@@ -141,196 +126,323 @@ function drawNodePDF(
   if (node.type === 'split' && node.children && node.sizes) {
     const totalSize = node.sizes.reduce((a, b) => a + b, 0);
     let offset = 0;
-
     node.children.forEach((child, i) => {
       const ratio = node.sizes![i] / totalSize;
       let cx: number, cy: number, cw: number, ch: number;
       let childWMm: number, childHMm: number;
-
       if (node.direction === 'vertical') {
-        cx = x + offset;
-        cy = y;
-        cw = w * ratio;
-        ch = h;
-        childWMm = node.sizes![i];
-        childHMm = heightMm;
+        cx = x + offset; cy = y; cw = w * ratio; ch = h;
+        childWMm = node.sizes![i]; childHMm = heightMm;
         offset += cw;
       } else {
-        cx = x;
-        cy = y + offset;
-        cw = w;
-        ch = h * ratio;
-        childWMm = widthMm;
-        childHMm = node.sizes![i];
+        cx = x; cy = y + offset; cw = w; ch = h * ratio;
+        childWMm = widthMm; childHMm = node.sizes![i];
         offset += ch;
       }
-
-      drawNodePDF(doc, child, cx, cy, cw, ch, color, childWMm, childHMm, frameT, divT);
-
+      drawNodePDF(doc, child, cx, cy, cw, ch, color, childWMm, childHMm, showGlassSizes);
       if (i < node.children!.length - 1) {
         doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
-        doc.setLineWidth(divT);
-        if (node.direction === 'vertical') {
-          doc.line(x + offset, y, x + offset, y + h);
-        } else {
-          doc.line(x, y + offset, x + w, y + offset);
-        }
+        doc.setLineWidth(1.5);
+        if (node.direction === 'vertical') doc.line(x + offset, y, x + offset, y + h);
+        else doc.line(x, y + offset, x + w, y + offset);
       }
     });
   }
 }
 
+// ===== SMART SKETCH LAYOUT =====
+function calculateSketchLayout(items: ConfigItem[], pageWidth: number, margin: number, gap: number) {
+  // Determine optimal columns based on item widths
+  const availableWidth = pageWidth - margin * 2;
+  
+  // Group items into rows dynamically
+  const rows: { items: ConfigItem[]; maxRatio: number }[] = [];
+  let currentRow: ConfigItem[] = [];
+  let currentRowWidth = 0;
+  
+  for (const item of items) {
+    const itemRatio = item.width / item.height;
+    const estimatedWidth = Math.min(availableWidth / 2, Math.max(30, 45 * itemRatio));
+    
+    if (currentRow.length > 0 && currentRowWidth + estimatedWidth + gap > availableWidth) {
+      rows.push({ items: [...currentRow], maxRatio: 0 });
+      currentRow = [item];
+      currentRowWidth = estimatedWidth;
+    } else {
+      currentRow.push(item);
+      currentRowWidth += estimatedWidth + (currentRow.length > 1 ? gap : 0);
+    }
+  }
+  if (currentRow.length > 0) {
+    rows.push({ items: [...currentRow], maxRatio: 0 });
+  }
+  
+  return rows;
+}
+
 function drawItemSketch(
-  doc: jsPDF,
-  item: ConfigItem,
-  x: number, y: number,
-  maxW: number, maxH: number,
+  doc: jsPDF, item: ConfigItem,
+  x: number, y: number, maxW: number, maxH: number,
+  showGlassSizes: boolean = false,
 ) {
   const ratio = item.width / item.height;
   let skW: number, skH: number;
-  if (ratio > maxW / maxH) {
-    skW = maxW; skH = maxW / ratio;
-  } else {
-    skH = maxH; skW = maxH * ratio;
-  }
+  if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
+  else { skH = maxH; skW = maxH * ratio; }
 
   const skX = x + (maxW - skW) / 2;
   const skY = y + (maxH - skH) / 2;
   const frameT = 1.5;
 
-  // Outer frame
   doc.setDrawColor(100, 100, 100);
   doc.setLineWidth(frameT);
   doc.rect(skX, skY, skW, skH);
 
-  // Draw recursive structure with real mm dimensions
-  drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height);
+  drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height, showGlassSizes);
 
-  // Overall dimension annotation
+  // Overall dimension
   doc.setTextColor(30, 30, 30);
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text(`${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`, x + maxW / 2, y + maxH + 5, { align: 'center' });
-  
-  const lm = calculateLinearMeters(item);
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
-  doc.text(`L=${lm.outerFrame.toFixed(2)}m  Z=${lm.openingFrames.toFixed(2)}m  x${item.quantity}`, x + maxW / 2, y + maxH + 10, { align: 'center' });
+
+  if (item.quantity > 1) {
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text(`x${item.quantity}`, x + maxW / 2, y + maxH + 10, { align: 'center' });
+  }
 }
 
-export function generatePDF(client: ClientData, items: ConfigItem[]) {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  // Header
+// ===== HELPERS =====
+function addHeader(doc: jsPDF, title: string) {
+  const pw = doc.internal.pageSize.getWidth();
   doc.setFillColor(75, 55, 35);
-  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.rect(0, 0, pw, 30, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('WINDOW', pageWidth / 2, 18, { align: 'center' });
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Konfigurator Profesional — Matje & Konfigurim', pageWidth / 2, 28, { align: 'center' });
+  doc.text(title, pw / 2, 18, { align: 'center' });
+}
 
-  // Date
+function addFooter(doc: jsPDF) {
+  const totalPages = doc.getNumberOfPages();
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Window — Konfigurator Profesional', pw / 2, ph - 8, { align: 'center' });
+    doc.text(`${i} / ${totalPages}`, pw - 15, ph - 8, { align: 'right' });
+  }
+}
+
+function addClientInfo(doc: jsPDF, client: ClientData, startY: number): number {
+  const date = new Date().toLocaleDateString('sq-AL');
+  const pw = doc.internal.pageSize.getWidth();
+  
   doc.setTextColor(100, 100, 100);
   doc.setFontSize(9);
-  const date = new Date().toLocaleDateString('sq-AL');
-  doc.text(`Data: ${date}`, pageWidth - 15, 45, { align: 'right' });
+  doc.text(`Data: ${date}`, pw - 15, startY, { align: 'right' });
 
-  // Client info
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Klienti', 15, 50);
+  doc.text('Klienti', 15, startY + 5);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  let y = 58;
+  let y = startY + 13;
   doc.text(`Emri: ${client.name || '—'}`, 15, y);
   if (client.phone) { y += 7; doc.text(`Tel: ${client.phone}`, 15, y); }
   if (client.address) { y += 7; doc.text(`Adresa: ${client.address}`, 15, y); }
+  return y + 10;
+}
 
-  // Table
-  y += 12;
-  const tableData = items.map((item, i) => {
-    const lm = calculateLinearMeters(item);
-    return [
-      (i + 1).toString(),
-      describeNode(item.rootNode),
-      `${(item.width / 10).toFixed(1)} x ${(item.height / 10).toFixed(1)}`,
-      COLOR_LABELS[item.color],
-      item.quantity.toString(),
-      `L=${lm.outerFrame.toFixed(2)}`,
-      `Z=${lm.openingFrames.toFixed(2)}`,
-      `${lm.total.toFixed(2)} m`,
-    ];
-  });
+// ===== SKETCH PAGES =====
+function addSketchPages(doc: jsPDF, items: ConfigItem[], showGlassSizes: boolean) {
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const gap = 8;
+  const availW = pw - margin * 2;
+  const maxCellH = 55;
+  const rowH = maxCellH + 16;
 
-  const totalLM = items.reduce((sum, item) => {
-    return sum + calculateLinearMeters(item).total * item.quantity;
-  }, 0);
+  // Group identical items (same dimensions)
+  const uniqueItems: ConfigItem[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    const key = `${item.width}-${item.height}-${JSON.stringify(item.rootNode)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueItems.push(item);
+    }
+  }
+
+  let pageItems = [...uniqueItems];
+  while (pageItems.length > 0) {
+    doc.addPage();
+    addHeader(doc, showGlassSizes ? 'Skicat Teknike' : 'Skicat e Elementeve');
+
+    let curY = 38;
+    while (pageItems.length > 0 && curY + rowH < ph - 20) {
+      // Determine how many fit in this row
+      let rowItems: ConfigItem[] = [];
+      let usedWidth = 0;
+
+      for (const item of pageItems) {
+        const itemRatio = item.width / item.height;
+        const cellW = Math.min(availW / 2, Math.max(35, maxCellH * itemRatio + 10));
+        if (rowItems.length > 0 && usedWidth + cellW + gap > availW) break;
+        rowItems.push(item);
+        usedWidth += cellW + (rowItems.length > 1 ? gap : 0);
+      }
+
+      if (rowItems.length === 0) break;
+      pageItems = pageItems.slice(rowItems.length);
+
+      // Distribute evenly
+      const cellW = (availW - gap * (rowItems.length - 1)) / rowItems.length;
+      rowItems.forEach((item, i) => {
+        const ix = margin + i * (cellW + gap);
+        drawItemSketch(doc, item, ix, curY, cellW, maxCellH, showGlassSizes);
+      });
+
+      curY += rowH;
+    }
+  }
+}
+
+// ===== CLIENT PDF =====
+export function generateClientPDF(client: ClientData, items: ConfigItem[]) {
+  const doc = new jsPDF();
+  const date = new Date().toLocaleDateString('sq-AL');
+
+  addHeader(doc, 'WINDOW — Oferta');
+  let y = addClientInfo(doc, client, 38);
+
+  // Simple table: just dimensions, color, quantity
+  const tableData = items.map((item, i) => [
+    (i + 1).toString(),
+    describeNode(item.rootNode),
+    `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`,
+    COLOR_LABELS[item.color],
+    item.quantity.toString(),
+  ]);
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Konfigurimi', 'Dim. (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Total (m)']],
+    head: [['#', 'Konfigurimi', 'Dimensionet', 'Ngjyra', 'Sasia']],
     body: tableData,
-    foot: [['', '', '', '', '', '', 'TOTALI', `${totalLM.toFixed(2)} m`]],
-    styles: { fontSize: 7, cellPadding: 2.5 },
+    styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [75, 55, 35], textColor: 255 },
+    alternateRowStyles: { fillColor: [248, 246, 243] },
+    theme: 'grid',
+    columnStyles: { 1: { cellWidth: 50 } },
+  });
+
+  // Sketches without glass sizes
+  addSketchPages(doc, items, false);
+  addFooter(doc);
+  doc.save(`window-klient-${client.name || 'pa-emer'}-${date}.pdf`);
+}
+
+// ===== COMPANY PDF =====
+export function generateCompanyPDF(client: ClientData, items: ConfigItem[], profileSystem: ProfileSystem) {
+  const doc = new jsPDF();
+  const date = new Date().toLocaleDateString('sq-AL');
+  const pw = doc.internal.pageSize.getWidth();
+  const frameThicknessCm = getFrameThicknessCm(profileSystem);
+  const frameThicknessMm = frameThicknessCm * 10;
+
+  addHeader(doc, 'WINDOW — Detajet Teknike');
+  let y = addClientInfo(doc, client, 38);
+
+  // Profile system info
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(75, 55, 35);
+  doc.text(`Sistemi: ${profileSystem.type.toUpperCase()} — Trashësia e kornizës: ${frameThicknessCm} cm`, 15, y);
+  y += 8;
+
+  // Full technical table
+  const tableData = items.map((item, i) => {
+    const lm = calculateLinearMeters(item);
+    const glassSizes = calculateGlassPanelSizes(item.rootNode, item.width, item.height, frameThicknessMm);
+    const glassStr = glassSizes.map(g => `${g.label}: ${g.widthCm.toFixed(1)}×${g.heightCm.toFixed(1)}`).join('\n');
+    return [
+      (i + 1).toString(),
+      describeNode(item.rootNode),
+      `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)}`,
+      COLOR_LABELS[item.color],
+      item.quantity.toString(),
+      `${lm.outerFrame.toFixed(2)}`,
+      `${lm.openingFrames.toFixed(2)}`,
+      `${lm.innerDividers.toFixed(2)}`,
+      `${lm.total.toFixed(2)}`,
+      glassStr,
+    ];
+  });
+
+  const totalLM = items.reduce((sum, item) => sum + calculateLinearMeters(item).total * item.quantity, 0);
+  const totalL = items.reduce((sum, item) => sum + calculateLinearMeters(item).outerFrame * item.quantity, 0);
+  const totalZ = items.reduce((sum, item) => sum + calculateLinearMeters(item).openingFrames * item.quantity, 0);
+
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'Konfigurimi', 'Dim (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Ndarja', 'Total', 'Xham/Panel']],
+    body: tableData,
+    foot: [['', '', '', '', '', totalL.toFixed(2), totalZ.toFixed(2), '', totalLM.toFixed(2), '']],
+    styles: { fontSize: 6, cellPadding: 2 },
+    headStyles: { fillColor: [75, 55, 35], textColor: 255, fontSize: 6 },
     footStyles: { fillColor: [240, 235, 228], textColor: [50, 50, 50], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 243] },
     theme: 'grid',
     columnStyles: {
-      1: { cellWidth: 40 },
+      1: { cellWidth: 30 },
+      9: { cellWidth: 35, fontSize: 5 },
     },
   });
 
-  // Draw sketches - 4 per row
-  const cols = 4;
-  const margin = 15;
-  const gap = 8;
-  const cellW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
-  const cellH = 50;
-  const rowH = cellH + 16;
-  const maxRows = Math.floor((pageHeight - 50) / (rowH + gap));
+  // Glass/Panel summary table
+  const allGlass: { item: number; label: string; w: string; h: string; type: string }[] = [];
+  items.forEach((item, i) => {
+    const sizes = calculateGlassPanelSizes(item.rootNode, item.width, item.height, frameThicknessMm);
+    sizes.forEach(g => {
+      for (let q = 0; q < item.quantity; q++) {
+        allGlass.push({
+          item: i + 1,
+          label: g.label,
+          w: g.widthCm.toFixed(2),
+          h: g.heightCm.toFixed(2),
+          type: g.type === 'glass' ? 'Xham' : 'Panel',
+        });
+      }
+    });
+  });
 
-  let pageItems = [...items];
-  while (pageItems.length > 0) {
-    doc.addPage();
-
-    doc.setFillColor(75, 55, 35);
-    doc.rect(0, 0, pageWidth, 25, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
+  if (allGlass.length > 0) {
+    const glassY = (doc as any).lastAutoTable?.finalY ?? y + 60;
+    
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('Skicat e Elementeve', pageWidth / 2, 16, { align: 'center' });
+    doc.setTextColor(50, 50, 50);
+    doc.text('Lista e Xhamave / Paneleve (-3mm tolerancë)', 15, glassY + 10);
 
-    const itemsPerPage = maxRows * cols;
-    const batch = pageItems.splice(0, itemsPerPage);
-
-    batch.forEach((item, idx) => {
-      const row = Math.floor(idx / cols);
-      const col = idx % cols;
-      const ix = margin + col * (cellW + gap);
-      const iy = 35 + row * (rowH + gap);
-
-      drawItemSketch(doc, item, ix, iy, cellW, cellH);
+    autoTable(doc, {
+      startY: glassY + 14,
+      head: [['Element', 'Emërtimi', 'Gjerësia (cm)', 'Lartësia (cm)', 'Tipi']],
+      body: allGlass.map(g => [g.item.toString(), g.label, g.w, g.h, g.type]),
+      styles: { fontSize: 7, cellPadding: 2.5 },
+      headStyles: { fillColor: [75, 55, 35], textColor: 255 },
+      alternateRowStyles: { fillColor: [248, 246, 243] },
+      theme: 'grid',
     });
   }
 
-  // Footer
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    const footerY = pageHeight - 10;
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Window — Konfigurator Profesional', pageWidth / 2, footerY, { align: 'center' });
-    doc.text(`${i} / ${totalPages}`, pageWidth - 15, footerY, { align: 'right' });
-  }
-
-  doc.save(`window-${client.name || 'klient'}-${date}.pdf`);
+  // Technical sketches with glass sizes
+  addSketchPages(doc, items, true);
+  addFooter(doc);
+  doc.save(`window-kompani-${client.name || 'pa-emer'}-${date}.pdf`);
 }

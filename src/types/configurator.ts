@@ -13,6 +13,27 @@ export type WindowColor = 'white' | 'brown' | 'black';
 
 export type SplitDirection = 'vertical' | 'horizontal';
 
+// ===== PROFILE SYSTEM =====
+export type ProfileSystemType = 'veka' | 'aluplast' | 'other';
+
+export const PROFILE_SYSTEMS: Record<ProfileSystemType, { label: string; frameThicknessCm: number }> = {
+  veka: { label: 'VEKA', frameThicknessCm: 8.2 },
+  aluplast: { label: 'ALUPLAST', frameThicknessCm: 8.5 },
+  other: { label: 'Tjetër (Custom)', frameThicknessCm: 7.0 },
+};
+
+export interface ProfileSystem {
+  type: ProfileSystemType;
+  customFrameThicknessCm?: number;
+}
+
+export function getFrameThicknessCm(profile: ProfileSystem): number {
+  if (profile.type === 'other' && profile.customFrameThicknessCm !== undefined) {
+    return profile.customFrameThicknessCm;
+  }
+  return PROFILE_SYSTEMS[profile.type].frameThicknessCm;
+}
+
 // ===== PANE CONFIG =====
 export interface PaneConfig {
   elementType: ElementType;
@@ -151,7 +172,6 @@ export function splitNode(node: WindowNode, direction: SplitDirection, totalSize
 
   const children: WindowNode[] = [];
   for (let i = 0; i < numParts; i++) {
-    // All new parts start as fixed (static)
     children.push(createPaneNode());
   }
 
@@ -246,6 +266,11 @@ function collectGlassPanelSizes(
   node: WindowNode,
   widthMm: number,
   heightMm: number,
+  frameThicknessMm: number,
+  isOuterLeft: boolean,
+  isOuterRight: boolean,
+  isOuterTop: boolean,
+  isOuterBottom: boolean,
   acc: GlassPanelSize[],
   index: { count: number }
 ) {
@@ -253,9 +278,16 @@ function collectGlassPanelSizes(
     const config = node.paneConfig;
     if (!config) return;
     
-    const deduction = 3; // 3mm total (1.5mm each side)
-    const glassW = widthMm - deduction;
-    const glassH = heightMm - deduction;
+    // Field (opening) = pane allocation minus frame/divider deductions
+    // Outer edges: subtract frame thickness
+    // Inner edges (dividers): subtract half divider (approx same as frame for simplicity)
+    // But user says: field already accounts for frame. glass = field - 3mm
+    // So: field_width = widthMm (the allocation) and glass = field - 3mm
+    // The frame deduction is conceptual - the sizes represent the physical allocation
+    // Glass tolerance: 3mm total (1.5mm each side)
+    const glassTolerance = 3; // mm
+    const glassW = widthMm - glassTolerance;
+    const glassH = heightMm - glassTolerance;
 
     if (config.doorFill === 'panel') {
       index.count++;
@@ -269,9 +301,8 @@ function collectGlassPanelSizes(
       });
     } else if (config.elementType === 'door' && config.doorFill === 'combo' && config.doorComboRatio) {
       const panelRatio = config.doorComboRatio / 100;
-      const panelOnTop = config.doorComboPosition === 'panel-top';
-      const panelH = heightMm * panelRatio - deduction;
-      const glassPartH = heightMm * (1 - panelRatio) - deduction;
+      const panelH = heightMm * panelRatio - glassTolerance;
+      const glassPartH = heightMm * (1 - panelRatio) - glassTolerance;
       index.count++;
       acc.push({
         label: `Panel ${index.count}`,
@@ -305,7 +336,6 @@ function collectGlassPanelSizes(
   }
 
   if (node.type === 'split' && node.children && node.sizes) {
-    const totalSize = node.sizes.reduce((a, b) => a + b, 0);
     node.children.forEach((child, i) => {
       const childSize = node.sizes![i] || 0;
       let childW: number, childH: number;
@@ -316,14 +346,21 @@ function collectGlassPanelSizes(
         childW = widthMm;
         childH = childSize;
       }
-      collectGlassPanelSizes(child, childW, childH, acc, index);
+      collectGlassPanelSizes(
+        child, childW, childH, frameThicknessMm,
+        node.direction === 'vertical' ? i === 0 && isOuterLeft : isOuterLeft,
+        node.direction === 'vertical' ? i === node.children!.length - 1 && isOuterRight : isOuterRight,
+        node.direction === 'horizontal' ? i === 0 && isOuterTop : isOuterTop,
+        node.direction === 'horizontal' ? i === node.children!.length - 1 && isOuterBottom : isOuterBottom,
+        acc, index
+      );
     });
   }
 }
 
-export function calculateGlassPanelSizes(rootNode: WindowNode, widthMm: number, heightMm: number): GlassPanelSize[] {
+export function calculateGlassPanelSizes(rootNode: WindowNode, widthMm: number, heightMm: number, frameThicknessMm: number = 82): GlassPanelSize[] {
   const acc: GlassPanelSize[] = [];
-  collectGlassPanelSizes(rootNode, widthMm, heightMm, acc, { count: 0 });
+  collectGlassPanelSizes(rootNode, widthMm, heightMm, frameThicknessMm, true, true, true, true, acc, { count: 0 });
   return acc;
 }
 
