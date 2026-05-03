@@ -91,4 +91,16 @@
     @apply bg-background text-foreground font-sans;
     font-family: 'Inter', sans-serif;
   }
+  /* Prevent iOS auto-zoom on input focus (requires >=16px font-size) */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    input, select, textarea {
+      font-size: 14px;
+    }
+  }
+  html, body {
+    overflow-x: hidden;
+  }
 }
