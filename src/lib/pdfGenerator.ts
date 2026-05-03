@@ -286,7 +286,7 @@ function addSketchPages(doc: jsPDF, items: ConfigItem[], showGlassSizes: boolean
   const gap = 8;
   const availW = pw - margin * 2;
   const maxCellH = 55;
-  const rowH = maxCellH + 16;
+  const rowH = maxCellH + 22;
 
   // Group identical items (same dimensions)
   const uniqueItems: ConfigItem[] = [];
