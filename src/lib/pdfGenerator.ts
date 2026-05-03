@@ -190,9 +190,21 @@ function drawItemSketch(
   if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
   else { skH = maxH; skW = maxH * ratio; }
 
+  // Reserve space for top label (glass sizes / project id) and bottom dimension
+  const topLabelH = showGlassSizes ? 6 : 0;
   const skX = x + (maxW - skW) / 2;
-  const skY = y + (maxH - skH) / 2;
+  const skY = y + topLabelH + Math.max(0, (maxH - skH - topLabelH) / 2);
   const frameT = 1.5;
+
+  // TOP: Glass dimensions label (company PDF only)
+  if (showGlassSizes) {
+    const glassW = (item.width - 3) / 10;
+    const glassH = (item.height - 3) / 10;
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Xham: ${glassW.toFixed(1)} × ${glassH.toFixed(1)} cm`, x + maxW / 2, skY - 1.5, { align: 'center' });
+  }
 
   doc.setDrawColor(100, 100, 100);
   doc.setLineWidth(frameT);
@@ -200,17 +212,24 @@ function drawItemSketch(
 
   drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height, showGlassSizes);
 
-  // Overall dimension
+  // BOTTOM: Overall dimension
   doc.setTextColor(30, 30, 30);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text(`${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`, x + maxW / 2, y + maxH + 5, { align: 'center' });
 
+  if (item.projectId) {
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(item.projectId, x + maxW / 2, y + maxH + 9, { align: 'center' });
+  }
+
   if (item.quantity > 1) {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
-    doc.text(`x${item.quantity}`, x + maxW / 2, y + maxH + 10, { align: 'center' });
+    doc.text(`x${item.quantity}`, x + maxW / 2, y + maxH + 13, { align: 'center' });
   }
 }
 
