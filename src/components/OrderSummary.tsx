@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, ClipboardList, User, Building2, Pencil } from "lucide-react";
 import { ConfigItem, ClientData, describeNode, calculateLinearMeters, COLOR_LABELS, ProfileSystem } from "@/types/configurator";
 import { generateClientPDF, generateCompanyPDF } from "@/lib/pdfGenerator";
+import { cn } from "@/lib/utils";
 
 interface OrderSummaryProps {
   items: ConfigItem[];
