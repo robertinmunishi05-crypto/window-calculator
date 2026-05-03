@@ -63,6 +63,7 @@ export interface ClientData {
 // ===== CONFIG ITEM =====
 export interface ConfigItem {
   id: string;
+  projectId?: string;
   productType: ProductType;
   width: number;  // mm
   height: number; // mm
@@ -127,8 +128,10 @@ export function createDefaultItem(productType: ProductType = 'window'): ConfigIt
   const defaultPaneConfig: PaneConfig = productType === 'door'
     ? { elementType: 'fixed', doorFill: 'panel' as any }
     : { elementType: 'fixed' };
+  const shortId = Math.random().toString(36).slice(2, 7).toUpperCase();
   return {
     id: crypto.randomUUID(),
+    projectId: `${productType === 'door' ? 'D' : 'W'}-${shortId}`,
     productType,
     width: productType === 'door' ? 900 : 1200,
     height: productType === 'door' ? 2100 : 1400,

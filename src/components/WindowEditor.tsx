@@ -23,7 +23,7 @@ import {
   createPaneNode,
 } from "@/types/configurator";
 import { cn } from "@/lib/utils";
-import { Edit3, Columns2, Rows2, Trash2, Plus, Undo2 } from "lucide-react";
+import { Edit3, Trash2, Plus, Undo2, MousePointerClick, Move, ArrowLeftRight, ArrowUpDown, X as XIcon, Square, DoorOpen as DoorIcon, RectangleHorizontal } from "lucide-react";
 
 interface WindowEditorProps {
   rootNode: WindowNode;
@@ -476,7 +476,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
           </p>
           {dragState && (
             <p className="text-xs text-primary font-medium mt-1 animate-pulse">
-              🔄 Duke ndryshuar madhësinë... lësho për të konfirmuar
+              Duke ndryshuar madhësinë... lësho për të konfirmuar
             </p>
           )}
         </div>
@@ -484,11 +484,12 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
         {/* Help text */}
         {!selectedNode && !dragState && (
           <div className="text-center py-3 rounded-lg border border-dashed border-muted-foreground/30">
-            <p className="text-sm text-muted-foreground">
-              👆 Kliko mbi {productType === 'door' ? 'derën' : 'dritaren'} për ta edituar
+            <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5 justify-center">
+              <MousePointerClick className="h-4 w-4" />
+              Kliko mbi {productType === 'door' ? 'derën' : 'dritaren'} për ta edituar
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              ↔ Tërhiq ndarjet për të ndryshuar madhësinë
+            <p className="text-[10px] text-muted-foreground mt-1 inline-flex items-center gap-1 justify-center w-full">
+              <Move className="h-3 w-3" /> Tërhiq ndarjet për të ndryshuar madhësinë
             </p>
           </div>
         )}
@@ -539,7 +540,9 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                             : "border-border hover:border-primary/40"
                         )}
                       >
-                        <span className="text-lg">{t === 'panel' ? '▬' : t === 'glass' ? '◻' : '🚪'}</span>
+                        <span className="flex items-center justify-center h-5">
+                          {t === 'panel' ? <RectangleHorizontal className="h-4 w-4" /> : t === 'glass' ? <Square className="h-4 w-4" /> : <DoorIcon className="h-4 w-4" />}
+                        </span>
                         <span>{t === 'panel' ? 'Panel' : t === 'glass' ? 'Xham' : 'Derë'}</span>
                       </button>
                     ))}
@@ -558,7 +561,9 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                           className="text-xs h-9"
                           onClick={() => handlePaneConfigChange({ openingDirection: d })}
                         >
-                          {d === 'left' ? '← Majtas' : 'Djathtas →'}
+                          <span className="inline-flex items-center gap-1 justify-center">
+                            {d === 'left' ? <><ArrowLeftRight className="h-3.5 w-3.5 -scale-x-100" /> Majtas</> : <>Djathtas <ArrowLeftRight className="h-3.5 w-3.5" /></>}
+                          </span>
                         </Button>
                       ))}
                     </div>
@@ -588,8 +593,8 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                             : "border-border hover:border-primary/40"
                         )}
                       >
-                        <span className="text-lg">
-                          {t === 'fixed' ? '✕' : t === 'slider' ? '↔' : '↗'}
+                        <span className="flex items-center justify-center h-5">
+                          {t === 'fixed' ? <XIcon className="h-4 w-4" /> : t === 'slider' ? <ArrowLeftRight className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                         </span>
                         <span>{ELEMENT_TYPE_LABELS[t]}</span>
                       </button>
@@ -642,7 +647,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
               <Label className="text-xs font-medium">Ndaj këtë pjesë</Label>
               <div className="space-y-2">
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground w-6">↕</span>
+                  <span className="text-xs text-muted-foreground w-6 inline-flex justify-center"><ArrowLeftRight className="h-3.5 w-3.5" /></span>
                   <div className="flex gap-1 flex-1">
                     {[2, 3, 4].map(n => (
                       <Button key={n} variant="outline" size="sm" className="text-xs flex-1 h-8" onClick={() => handleSplitWithCount('vertical', n)}>
@@ -664,7 +669,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground w-6">↔</span>
+                  <span className="text-xs text-muted-foreground w-6 inline-flex justify-center"><ArrowUpDown className="h-3.5 w-3.5" /></span>
                   <div className="flex gap-1 flex-1">
                     {[2, 3, 4].map(n => (
                       <Button key={n} variant="outline" size="sm" className="text-xs flex-1 h-8" onClick={() => handleSplitWithCount('horizontal', n)}>

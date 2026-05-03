@@ -190,9 +190,21 @@ function drawItemSketch(
   if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
   else { skH = maxH; skW = maxH * ratio; }
 
+  // Reserve space for top label (glass sizes / project id) and bottom dimension
+  const topLabelH = showGlassSizes ? 6 : 0;
   const skX = x + (maxW - skW) / 2;
-  const skY = y + (maxH - skH) / 2;
+  const skY = y + topLabelH + Math.max(0, (maxH - skH - topLabelH) / 2);
   const frameT = 1.5;
+
+  // TOP: Glass dimensions label (company PDF only)
+  if (showGlassSizes) {
+    const glassW = (item.width - 3) / 10;
+    const glassH = (item.height - 3) / 10;
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Xham: ${glassW.toFixed(1)} × ${glassH.toFixed(1)} cm`, x + maxW / 2, skY - 1.5, { align: 'center' });
+  }
 
   doc.setDrawColor(100, 100, 100);
   doc.setLineWidth(frameT);
@@ -200,17 +212,24 @@ function drawItemSketch(
 
   drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height, showGlassSizes);
 
-  // Overall dimension
+  // BOTTOM: Overall dimension
   doc.setTextColor(30, 30, 30);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text(`${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`, x + maxW / 2, y + maxH + 5, { align: 'center' });
 
+  if (item.projectId) {
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(item.projectId, x + maxW / 2, y + maxH + 9, { align: 'center' });
+  }
+
   if (item.quantity > 1) {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
-    doc.text(`x${item.quantity}`, x + maxW / 2, y + maxH + 10, { align: 'center' });
+    doc.text(`x${item.quantity}`, x + maxW / 2, y + maxH + 13, { align: 'center' });
   }
 }
 
@@ -267,7 +286,7 @@ function addSketchPages(doc: jsPDF, items: ConfigItem[], showGlassSizes: boolean
   const gap = 8;
   const availW = pw - margin * 2;
   const maxCellH = 55;
-  const rowH = maxCellH + 16;
+  const rowH = maxCellH + 22;
 
   // Group identical items (same dimensions)
   const uniqueItems: ConfigItem[] = [];
@@ -325,6 +344,7 @@ export function generateClientPDF(client: ClientData, items: ConfigItem[]) {
   // Simple table: just dimensions, color, quantity
   const tableData = items.map((item, i) => [
     (i + 1).toString(),
+    item.projectId || '—',
     describeNode(item.rootNode),
     `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`,
     COLOR_LABELS[item.color],
@@ -333,13 +353,13 @@ export function generateClientPDF(client: ClientData, items: ConfigItem[]) {
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Konfigurimi', 'Dimensionet', 'Ngjyra', 'Sasia']],
+    head: [['#', 'ID', 'Konfigurimi', 'Dimensionet', 'Ngjyra', 'Sasia']],
     body: tableData,
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [75, 55, 35], textColor: 255 },
     alternateRowStyles: { fillColor: [248, 246, 243] },
     theme: 'grid',
-    columnStyles: { 1: { cellWidth: 50 } },
+    columnStyles: { 1: { cellWidth: 22, fontStyle: 'bold' }, 2: { cellWidth: 45 } },
   });
 
   // Sketches without glass sizes
@@ -373,6 +393,7 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
     const glassStr = glassSizes.map(g => `${g.label}: ${g.widthCm.toFixed(1)}×${g.heightCm.toFixed(1)}`).join('\n');
     return [
       (i + 1).toString(),
+      item.projectId || '—',
       describeNode(item.rootNode),
       `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)}`,
       COLOR_LABELS[item.color],
@@ -391,17 +412,18 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Konfigurimi', 'Dim (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Ndarja', 'Total', 'Xham/Panel']],
+    head: [['#', 'ID', 'Konfigurimi', 'Dim (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Ndarja', 'Total', 'Xham/Panel']],
     body: tableData,
-    foot: [['', '', '', '', '', totalL.toFixed(2), totalZ.toFixed(2), '', totalLM.toFixed(2), '']],
+    foot: [['', '', '', '', '', '', totalL.toFixed(2), totalZ.toFixed(2), '', totalLM.toFixed(2), '']],
     styles: { fontSize: 6, cellPadding: 2 },
     headStyles: { fillColor: [75, 55, 35], textColor: 255, fontSize: 6 },
     footStyles: { fillColor: [240, 235, 228], textColor: [50, 50, 50], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 243] },
     theme: 'grid',
     columnStyles: {
-      1: { cellWidth: 30 },
-      9: { cellWidth: 35, fontSize: 5 },
+      1: { cellWidth: 18, fontStyle: 'bold' },
+      2: { cellWidth: 28 },
+      10: { cellWidth: 32, fontSize: 5 },
     },
   });
 

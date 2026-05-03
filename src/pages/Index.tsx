@@ -24,6 +24,14 @@ const Index = () => {
 
   const handleAddToOrder = useCallback(() => {
     if (!currentItem) return;
+    if (currentItem.width <= 0 || currentItem.height <= 0) {
+      alert('Gjerësia dhe lartësia duhet të jenë më të mëdha se 0 cm.');
+      return;
+    }
+    if (currentItem.quantity <= 0) {
+      alert('Sasia duhet të jetë të paktën 1.');
+      return;
+    }
     setItems((prev) => {
       const existing = prev.findIndex((i) => i.id === currentItem.id);
       if (existing >= 0) {
@@ -39,6 +47,11 @@ const Index = () => {
   const handleRemoveItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
+
+  const handleEditItem = useCallback((id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (item) setCurrentItem({ ...item });
+  }, [items]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -118,7 +131,7 @@ const Index = () => {
                 />
                 <button
                   onClick={handleAddToOrder}
-                  className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+                  className="w-full min-h-[48px] py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
                 >
                   {items.find((i) => i.id === currentItem.id) ? 'Përditëso në Porosi' : 'Shto në Porosi'}
                 </button>
@@ -133,6 +146,7 @@ const Index = () => {
                 clientData={clientData}
                 profileSystem={profileSystem}
                 onRemoveItem={handleRemoveItem}
+                onEditItem={handleEditItem}
               />
             </div>
           </div>

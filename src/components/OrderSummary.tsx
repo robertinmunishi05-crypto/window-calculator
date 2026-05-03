@@ -1,17 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown, Trash2, ClipboardList, User, Building2 } from "lucide-react";
+import { Trash2, ClipboardList, User, Building2, Pencil } from "lucide-react";
 import { ConfigItem, ClientData, describeNode, calculateLinearMeters, COLOR_LABELS, ProfileSystem } from "@/types/configurator";
 import { generateClientPDF, generateCompanyPDF } from "@/lib/pdfGenerator";
+import { cn } from "@/lib/utils";
 
 interface OrderSummaryProps {
   items: ConfigItem[];
   clientData: ClientData;
   profileSystem: ProfileSystem;
   onRemoveItem: (id: string) => void;
+  onEditItem?: (id: string) => void;
 }
 
-const OrderSummary = ({ items, clientData, profileSystem, onRemoveItem }: OrderSummaryProps) => {
+const OrderSummary = ({ items, clientData, profileSystem, onRemoveItem, onEditItem }: OrderSummaryProps) => {
   const totalLinearMeters = items.reduce((sum, item) => {
     return sum + calculateLinearMeters(item).total * item.quantity;
   }, 0);
@@ -30,8 +32,18 @@ const OrderSummary = ({ items, clientData, profileSystem, onRemoveItem }: OrderS
         {items.map((item, idx) => {
           const lm = calculateLinearMeters(item);
           return (
-            <div key={item.id} className="flex items-start justify-between p-3 rounded-lg bg-muted/50 border">
+            <div
+              key={item.id}
+              className={cn(
+                "flex items-start justify-between p-3 rounded-lg bg-muted/50 border",
+                onEditItem && "cursor-pointer hover:bg-muted transition-colors"
+              )}
+              onClick={() => onEditItem?.(item.id)}
+            >
               <div className="space-y-1 flex-1 min-w-0">
+                {item.projectId && (
+                  <p className="text-[10px] font-mono text-muted-foreground">{item.projectId}</p>
+                )}
                 <p className="text-sm font-medium truncate">
                   {idx + 1}. {describeNode(item.rootNode)}
                 </p>
@@ -42,9 +54,24 @@ const OrderSummary = ({ items, clientData, profileSystem, onRemoveItem }: OrderS
                   L={lm.outerFrame.toFixed(2)}m  Z={lm.openingFrames.toFixed(2)}m
                 </p>
               </div>
-              <button onClick={() => onRemoveItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors ml-2">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1 ml-2">
+                {onEditItem && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEditItem(item.id); }}
+                    className="p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Edito"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
+                  className="p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                  aria-label="Fshi"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           );
         })}
