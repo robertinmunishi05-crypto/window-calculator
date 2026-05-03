@@ -23,7 +23,7 @@ import {
   createPaneNode,
 } from "@/types/configurator";
 import { cn } from "@/lib/utils";
-import { Edit3, Columns2, Rows2, Trash2, Plus, Undo2 } from "lucide-react";
+import { Edit3, Trash2, Plus, Undo2, MousePointerClick, Move, ArrowLeftRight, ArrowUpDown, X as XIcon, Square, DoorOpen as DoorIcon, RectangleHorizontal } from "lucide-react";
 
 interface WindowEditorProps {
   rootNode: WindowNode;
