@@ -476,7 +476,7 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
           </p>
           {dragState && (
             <p className="text-xs text-primary font-medium mt-1 animate-pulse">
-              🔄 Duke ndryshuar madhësinë... lësho për të konfirmuar
+              Duke ndryshuar madhësinë... lësho për të konfirmuar
             </p>
           )}
         </div>
@@ -484,11 +484,12 @@ const WindowEditor = ({ rootNode, onChange, color, width, height, productType }:
         {/* Help text */}
         {!selectedNode && !dragState && (
           <div className="text-center py-3 rounded-lg border border-dashed border-muted-foreground/30">
-            <p className="text-sm text-muted-foreground">
-              👆 Kliko mbi {productType === 'door' ? 'derën' : 'dritaren'} për ta edituar
+            <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5 justify-center">
+              <MousePointerClick className="h-4 w-4" />
+              Kliko mbi {productType === 'door' ? 'derën' : 'dritaren'} për ta edituar
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              ↔ Tërhiq ndarjet për të ndryshuar madhësinë
+            <p className="text-[10px] text-muted-foreground mt-1 inline-flex items-center gap-1 justify-center w-full">
+              <Move className="h-3 w-3" /> Tërhiq ndarjet për të ndryshuar madhësinë
             </p>
           </div>
         )}
