@@ -131,7 +131,7 @@ const Index = () => {
                 />
                 <button
                   onClick={handleAddToOrder}
-                  className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+                  className="w-full min-h-[48px] py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
                 >
                   {items.find((i) => i.id === currentItem.id) ? 'Përditëso në Porosi' : 'Shto në Porosi'}
                 </button>
