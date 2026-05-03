@@ -393,6 +393,7 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
     const glassStr = glassSizes.map(g => `${g.label}: ${g.widthCm.toFixed(1)}×${g.heightCm.toFixed(1)}`).join('\n');
     return [
       (i + 1).toString(),
+      item.projectId || '—',
       describeNode(item.rootNode),
       `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)}`,
       COLOR_LABELS[item.color],
@@ -411,17 +412,18 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Konfigurimi', 'Dim (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Ndarja', 'Total', 'Xham/Panel']],
+    head: [['#', 'ID', 'Konfigurimi', 'Dim (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Ndarja', 'Total', 'Xham/Panel']],
     body: tableData,
-    foot: [['', '', '', '', '', totalL.toFixed(2), totalZ.toFixed(2), '', totalLM.toFixed(2), '']],
+    foot: [['', '', '', '', '', '', totalL.toFixed(2), totalZ.toFixed(2), '', totalLM.toFixed(2), '']],
     styles: { fontSize: 6, cellPadding: 2 },
     headStyles: { fillColor: [75, 55, 35], textColor: 255, fontSize: 6 },
     footStyles: { fillColor: [240, 235, 228], textColor: [50, 50, 50], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 243] },
     theme: 'grid',
     columnStyles: {
-      1: { cellWidth: 30 },
-      9: { cellWidth: 35, fontSize: 5 },
+      1: { cellWidth: 18, fontStyle: 'bold' },
+      2: { cellWidth: 28 },
+      10: { cellWidth: 32, fontSize: 5 },
     },
   });
 
