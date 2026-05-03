@@ -344,6 +344,7 @@ export function generateClientPDF(client: ClientData, items: ConfigItem[]) {
   // Simple table: just dimensions, color, quantity
   const tableData = items.map((item, i) => [
     (i + 1).toString(),
+    item.projectId || '—',
     describeNode(item.rootNode),
     `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`,
     COLOR_LABELS[item.color],
@@ -352,13 +353,13 @@ export function generateClientPDF(client: ClientData, items: ConfigItem[]) {
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Konfigurimi', 'Dimensionet', 'Ngjyra', 'Sasia']],
+    head: [['#', 'ID', 'Konfigurimi', 'Dimensionet', 'Ngjyra', 'Sasia']],
     body: tableData,
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [75, 55, 35], textColor: 255 },
     alternateRowStyles: { fillColor: [248, 246, 243] },
     theme: 'grid',
-    columnStyles: { 1: { cellWidth: 50 } },
+    columnStyles: { 1: { cellWidth: 22, fontStyle: 'bold' }, 2: { cellWidth: 45 } },
   });
 
   // Sketches without glass sizes
