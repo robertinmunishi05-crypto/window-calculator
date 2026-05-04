@@ -92,13 +92,13 @@ function drawNodePDF(
       doc.circle(x + w - 4, y + h / 2, 1, 'F');
     }
 
-    // Glass size labels (company PDF)
-    if (showGlassSizes) {
+    // Type label inside segment (small, neutral) — no glass sizes, no IDs
+    {
       const cx = x + w / 2, cy = y + h / 2;
       const typeLabel = isDoorPanel ? 'PNL' : config.elementType === 'door' ? 'DER' : config.elementType === 'opening' ? 'HAP' : config.elementType === 'slider' ? 'SHB' : 'FIX';
       doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(60, 60, 60);
+      doc.setTextColor(90, 90, 90);
       doc.text(typeLabel, cx, cy + 1.5, { align: 'center' });
     }
 
@@ -176,21 +176,18 @@ function drawItemSketch(
   if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
   else { skH = maxH; skW = maxH * ratio; }
 
-  // Reserve space for top label (glass sizes / project id) and bottom dimension
-  const topLabelH = showGlassSizes ? 6 : 0;
-  const skX = x + (maxW - skW) / 2;
-  const skY = y + topLabelH + Math.max(0, (maxH - skH - topLabelH) / 2);
-  const frameT = 1.5;
+  // Reserve outer space: left for vertical height, bottom for width
+  const leftPad = 8;
+  const bottomPad = 8;
+  const usableW = maxW - leftPad;
+  const usableH = maxH - bottomPad;
+  const r2 = item.width / item.height;
+  if (r2 > usableW / usableH) { skW = usableW; skH = usableW / r2; }
+  else { skH = usableH; skW = usableH * r2; }
 
-  // TOP: Glass dimensions label (company PDF only)
-  if (showGlassSizes) {
-    const glassW = (item.width - 3) / 10;
-    const glassH = (item.height - 3) / 10;
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Xham: ${glassW.toFixed(1)} × ${glassH.toFixed(1)} cm`, x + maxW / 2, skY - 1.5, { align: 'center' });
-  }
+  const skX = x + leftPad + (usableW - skW) / 2;
+  const skY = y + (usableH - skH) / 2;
+  const frameT = 1.5;
 
   doc.setDrawColor(100, 100, 100);
   doc.setLineWidth(frameT);
@@ -198,24 +195,22 @@ function drawItemSketch(
 
   drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height, showGlassSizes);
 
-  // BOTTOM: Overall dimension
+  // BOTTOM (outside): width in cm
   doc.setTextColor(30, 30, 30);
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`, x + maxW / 2, y + maxH + 5, { align: 'center' });
+  doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 5, { align: 'center' });
 
-  if (item.projectId) {
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 120, 120);
-    doc.text(item.projectId, x + maxW / 2, y + maxH + 9, { align: 'center' });
-  }
+  // LEFT (outside): height in cm, rotated vertically (bottom→top)
+  const heightLabelX = skX - 3;
+  const heightLabelY = skY + skH / 2;
+  doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 90 });
 
   if (item.quantity > 1) {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
-    doc.text(`x${item.quantity}`, x + maxW / 2, y + maxH + 13, { align: 'center' });
+    doc.text(`x${item.quantity}`, skX + skW / 2, skY + skH + 10, { align: 'center' });
   }
 }
 
