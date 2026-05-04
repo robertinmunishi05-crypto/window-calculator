@@ -370,8 +370,6 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
   // Full technical table
   const tableData = items.map((item, i) => {
     const lm = calculateLinearMeters(item);
-    const glassSizes = calculateGlassPanelSizes(item.rootNode, item.width, item.height, frameThicknessMm);
-    const glassStr = glassSizes.map(g => `${g.label}: ${g.widthCm.toFixed(1)}×${g.heightCm.toFixed(1)}`).join('\n');
     return [
       (i + 1).toString(),
       item.projectId || '—',
@@ -383,7 +381,6 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
       `${lm.openingFrames.toFixed(2)}`,
       `${lm.innerDividers.toFixed(2)}`,
       `${lm.total.toFixed(2)}`,
-      glassStr,
     ];
   });
 
@@ -393,18 +390,17 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'ID', 'Konfigurimi', 'Dim (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Ndarja', 'Total', 'Xham/Panel']],
+    head: [['#', 'ID', 'Konfigurimi', 'Dim (cm)', 'Ngjyra', 'Sasia', 'L (m)', 'Z (m)', 'Ndarja', 'Total']],
     body: tableData,
-    foot: [['', '', '', '', '', '', totalL.toFixed(2), totalZ.toFixed(2), '', totalLM.toFixed(2), '']],
-    styles: { fontSize: 6, cellPadding: 2 },
-    headStyles: { fillColor: [75, 55, 35], textColor: 255, fontSize: 6 },
+    foot: [['', '', '', '', '', '', totalL.toFixed(2), totalZ.toFixed(2), '', totalLM.toFixed(2)]],
+    styles: { fontSize: 7, cellPadding: 2.5 },
+    headStyles: { fillColor: [75, 55, 35], textColor: 255, fontSize: 7 },
     footStyles: { fillColor: [240, 235, 228], textColor: [50, 50, 50], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 243] },
     theme: 'grid',
     columnStyles: {
-      1: { cellWidth: 18, fontStyle: 'bold' },
-      2: { cellWidth: 28 },
-      10: { cellWidth: 32, fontSize: 5 },
+      1: { cellWidth: 20, fontStyle: 'bold' },
+      2: { cellWidth: 35 },
     },
   });
 
