@@ -176,17 +176,20 @@ function drawItemSketch(
   if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
   else { skH = maxH; skW = maxH * ratio; }
 
-  // Reserve outer space: left for vertical height, bottom for width
-  const leftPad = 8;
-  const bottomPad = 8;
+  // Reserve minimal outer space: left for vertical height label, bottom for width label
+  const leftPad = 6;
+  const bottomPad = 6;
   const usableW = maxW - leftPad;
   const usableH = maxH - bottomPad;
   const r2 = item.width / item.height;
   if (r2 > usableW / usableH) { skW = usableW; skH = usableW / r2; }
   else { skH = usableH; skW = usableH * r2; }
 
-  const skX = x + leftPad + (usableW - skW) / 2;
-  const skY = y + (usableH - skH) / 2;
+  // Anchor sketch to the LEFT (right after the height label) so labels sit close to the frame.
+  // Any extra horizontal space falls on the right side for a balanced look.
+  const skX = x + leftPad;
+  // Anchor sketch to the TOP so the bottom width label sits right under the frame.
+  const skY = y;
   const frameT = 1.5;
 
   doc.setDrawColor(100, 100, 100);
@@ -195,14 +198,14 @@ function drawItemSketch(
 
   drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height, showGlassSizes);
 
-  // BOTTOM (outside): width in cm
+  // BOTTOM (outside, close to frame): width in cm
   doc.setTextColor(30, 30, 30);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 5, { align: 'center' });
+  doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 4, { align: 'center' });
 
-  // LEFT (outside): height in cm, rotated vertically (bottom→top)
-  const heightLabelX = skX - 3;
+  // LEFT (outside, close to frame): height in cm, rotated vertically (bottom→top)
+  const heightLabelX = skX - 2;
   const heightLabelY = skY + skH / 2;
   doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 90 });
 
@@ -210,7 +213,7 @@ function drawItemSketch(
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
-    doc.text(`x${item.quantity}`, skX + skW / 2, skY + skH + 10, { align: 'center' });
+    doc.text(`x${item.quantity}`, skX + skW - 2, skY + skH + 4, { align: 'right' });
   }
 }
 
