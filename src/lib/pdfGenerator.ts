@@ -72,20 +72,33 @@ function drawNodePDF(
       doc.line(x + w - 1, y + 1, x + 1, y + h - 1);
     }
     if (config.elementType === 'opening') {
+      // Big "V" opening indicator that spans full segment height (architectural style)
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
-      doc.setLineWidth(0.3);
-      const cx = x + w / 2, cy = y + h / 2;
+      doc.setLineWidth(0.5);
       const dir = config.openingDirection || 'left';
-      if (dir === 'left') { doc.line(cx + 3, cy, cx - 3, cy); doc.line(cx - 3, cy, cx - 1, cy - 2); }
-      else { doc.line(cx - 3, cy, cx + 3, cy); doc.line(cx + 3, cy, cx + 1, cy - 2); }
+      const padX = w * 0.08;
+      const padY = h * 0.08;
+      if (dir === 'left') {
+        // Apex on the LEFT side, opens to the right
+        doc.line(x + padX, y + h / 2, x + w - padX, y + padY);
+        doc.line(x + padX, y + h / 2, x + w - padX, y + h - padY);
+      } else {
+        // Apex on the RIGHT side, opens to the left
+        doc.line(x + w - padX, y + h / 2, x + padX, y + padY);
+        doc.line(x + w - padX, y + h / 2, x + padX, y + h - padY);
+      }
     }
     if (config.elementType === 'slider') {
+      // Big horizontal arrow spanning the segment
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
-      doc.setLineWidth(0.3);
-      const cx = x + w / 2, cy = y + h / 2;
-      doc.line(cx - 4, cy, cx + 4, cy);
-      doc.line(cx - 4, cy, cx - 2, cy - 2);
-      doc.line(cx + 4, cy, cx + 2, cy - 2);
+      doc.setLineWidth(0.5);
+      const cy = y + h / 2;
+      const padX = w * 0.1;
+      doc.line(x + padX, cy, x + w - padX, cy);
+      doc.line(x + padX, cy, x + padX + w * 0.08, cy - h * 0.08);
+      doc.line(x + padX, cy, x + padX + w * 0.08, cy + h * 0.08);
+      doc.line(x + w - padX, cy, x + w - padX - w * 0.08, cy - h * 0.08);
+      doc.line(x + w - padX, cy, x + w - padX - w * 0.08, cy + h * 0.08);
     }
     if (config.elementType === 'door') {
       doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
