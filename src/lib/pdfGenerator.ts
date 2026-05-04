@@ -177,17 +177,17 @@ function drawItemSketch(
   else { skH = maxH; skW = maxH * ratio; }
 
   // Reserve minimal outer space: left for vertical height label, bottom for width label
-  const leftPad = 6;
-  const bottomPad = 6;
+  const leftPad = 4;
+  const bottomPad = 4;
   const usableW = maxW - leftPad;
   const usableH = maxH - bottomPad;
   const r2 = item.width / item.height;
   if (r2 > usableW / usableH) { skW = usableW; skH = usableW / r2; }
   else { skH = usableH; skW = usableH * r2; }
 
-  // Anchor sketch to the LEFT (right after the height label) so labels sit close to the frame.
-  // Any extra horizontal space falls on the right side for a balanced look.
-  const skX = x + leftPad;
+  // Anchor sketch to the RIGHT so any extra horizontal space falls on the LEFT side
+  // (height label sits tight against the frame, balanced layout).
+  const skX = x + (maxW - skW);
   // Anchor sketch to the TOP so the bottom width label sits right under the frame.
   const skY = y;
   const frameT = 1.5;
@@ -205,7 +205,7 @@ function drawItemSketch(
   doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 4, { align: 'center' });
 
   // LEFT (outside, close to frame): height in cm, rotated vertically (bottom→top)
-  const heightLabelX = skX - 2;
+  const heightLabelX = skX - 1.5;
   const heightLabelY = skY + skH / 2;
   doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 90 });
 
