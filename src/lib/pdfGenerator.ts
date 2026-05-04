@@ -72,20 +72,33 @@ function drawNodePDF(
       doc.line(x + w - 1, y + 1, x + 1, y + h - 1);
     }
     if (config.elementType === 'opening') {
+      // Big "V" opening indicator that spans full segment height (architectural style)
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
-      doc.setLineWidth(0.3);
-      const cx = x + w / 2, cy = y + h / 2;
+      doc.setLineWidth(0.5);
       const dir = config.openingDirection || 'left';
-      if (dir === 'left') { doc.line(cx + 3, cy, cx - 3, cy); doc.line(cx - 3, cy, cx - 1, cy - 2); }
-      else { doc.line(cx - 3, cy, cx + 3, cy); doc.line(cx + 3, cy, cx + 1, cy - 2); }
+      const padX = w * 0.08;
+      const padY = h * 0.08;
+      if (dir === 'left') {
+        // Apex on the LEFT side, opens to the right
+        doc.line(x + padX, y + h / 2, x + w - padX, y + padY);
+        doc.line(x + padX, y + h / 2, x + w - padX, y + h - padY);
+      } else {
+        // Apex on the RIGHT side, opens to the left
+        doc.line(x + w - padX, y + h / 2, x + padX, y + padY);
+        doc.line(x + w - padX, y + h / 2, x + padX, y + h - padY);
+      }
     }
     if (config.elementType === 'slider') {
+      // Big horizontal arrow spanning the segment
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
-      doc.setLineWidth(0.3);
-      const cx = x + w / 2, cy = y + h / 2;
-      doc.line(cx - 4, cy, cx + 4, cy);
-      doc.line(cx - 4, cy, cx - 2, cy - 2);
-      doc.line(cx + 4, cy, cx + 2, cy - 2);
+      doc.setLineWidth(0.5);
+      const cy = y + h / 2;
+      const padX = w * 0.1;
+      doc.line(x + padX, cy, x + w - padX, cy);
+      doc.line(x + padX, cy, x + padX + w * 0.08, cy - h * 0.08);
+      doc.line(x + padX, cy, x + padX + w * 0.08, cy + h * 0.08);
+      doc.line(x + w - padX, cy, x + w - padX - w * 0.08, cy - h * 0.08);
+      doc.line(x + w - padX, cy, x + w - padX - w * 0.08, cy + h * 0.08);
     }
     if (config.elementType === 'door') {
       doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
@@ -176,18 +189,18 @@ function drawItemSketch(
   if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
   else { skH = maxH; skW = maxH * ratio; }
 
-  // Reserve minimal outer space: left for vertical height label, bottom for width label
-  const leftPad = 4;
+  // Reserve minimal outer space: right for vertical height label, bottom for width label
+  const rightPad = 5;
   const bottomPad = 4;
-  const usableW = maxW - leftPad;
+  const usableW = maxW - rightPad;
   const usableH = maxH - bottomPad;
   const r2 = item.width / item.height;
   if (r2 > usableW / usableH) { skW = usableW; skH = usableW / r2; }
   else { skH = usableH; skW = usableH * r2; }
 
-  // Anchor sketch to the LEFT (after the height label) so sketches start from the left side.
-  // Any extra horizontal space falls on the right.
-  const skX = x + leftPad;
+  // Anchor sketch to the LEFT so sketches start from the left side.
+  // Height label sits on the right, close to the frame.
+  const skX = x;
   // Anchor sketch to the TOP so the bottom width label sits right under the frame.
   const skY = y;
   const frameT = 1.5;
@@ -204,10 +217,10 @@ function drawItemSketch(
   doc.setFont('helvetica', 'bold');
   doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 4, { align: 'center' });
 
-  // LEFT (outside, close to frame): height in cm, rotated vertically (bottom→top)
-  const heightLabelX = skX - 1.5;
+  // RIGHT (outside, close to frame): height in cm, rotated vertically
+  const heightLabelX = skX + skW + 3;
   const heightLabelY = skY + skH / 2;
-  doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 90 });
+  doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 270 });
 
   if (item.quantity > 1) {
     doc.setFontSize(7);
