@@ -185,9 +185,9 @@ function drawItemSketch(
   if (r2 > usableW / usableH) { skW = usableW; skH = usableW / r2; }
   else { skH = usableH; skW = usableH * r2; }
 
-  // Anchor sketch to the RIGHT so any extra horizontal space falls on the LEFT side
-  // (height label sits tight against the frame, balanced layout).
-  const skX = x + (maxW - skW);
+  // Anchor sketch to the LEFT (after the height label) so sketches start from the left side.
+  // Any extra horizontal space falls on the right.
+  const skX = x + leftPad;
   // Anchor sketch to the TOP so the bottom width label sits right under the frame.
   const skY = y;
   const frameT = 1.5;
