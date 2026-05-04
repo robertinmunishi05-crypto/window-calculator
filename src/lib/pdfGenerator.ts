@@ -94,26 +94,12 @@ function drawNodePDF(
 
     // Glass size labels (company PDF)
     if (showGlassSizes) {
-      const glassTolerance = 3;
-      const glassW = widthMm - glassTolerance;
-      const glassH = heightMm - glassTolerance;
-      const labelW = (glassW / 10).toFixed(1);
-      const labelH = (glassH / 10).toFixed(1);
-      const labelText = `${labelW}×${labelH}`;
       const cx = x + w / 2, cy = y + h / 2;
-
-      doc.setFontSize(6);
-      doc.setFont('helvetica', 'bold');
-      const textW = doc.getTextWidth(labelText);
-      doc.setFillColor(255, 255, 255);
-      doc.rect(cx - textW / 2 - 1.5, cy - 3, textW + 3, 6, 'F');
-      doc.setTextColor(30, 30, 30);
-      doc.text(labelText, cx, cy + 1.5, { align: 'center' });
-
       const typeLabel = isDoorPanel ? 'PNL' : config.elementType === 'door' ? 'DER' : config.elementType === 'opening' ? 'HAP' : config.elementType === 'slider' ? 'SHB' : 'FIX';
-      doc.setFontSize(4.5);
+      doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
-      doc.text(typeLabel, cx, cy + 5.5, { align: 'center' });
+      doc.setTextColor(60, 60, 60);
+      doc.text(typeLabel, cx, cy + 1.5, { align: 'center' });
     }
 
     // Border
