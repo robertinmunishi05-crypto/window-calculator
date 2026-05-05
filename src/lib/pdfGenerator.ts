@@ -102,6 +102,8 @@ function drawNodePDF(
         doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
         doc.circle(hingeX, topY, 0.8, 'F');
         doc.circle(hingeX, botY, 0.8, 'F');
+        // Hinge midpoint dot — clearly marks where opening starts
+        doc.circle(hingeX, midY, 1.1, 'F');
       } else {
         // Hinge on RIGHT edge, handle on LEFT
         const hingeX = x + w - padX;
@@ -117,6 +119,7 @@ function drawNodePDF(
         doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
         doc.circle(hingeX, topY, 0.8, 'F');
         doc.circle(hingeX, botY, 0.8, 'F');
+        doc.circle(hingeX, midY, 1.1, 'F');
       }
     }
     if (config.elementType === 'slider') {
