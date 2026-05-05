@@ -102,6 +102,8 @@ function drawNodePDF(
         doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
         doc.circle(hingeX, topY, 0.8, 'F');
         doc.circle(hingeX, botY, 0.8, 'F');
+        // Hinge midpoint dot — clearly marks where opening starts
+        doc.circle(hingeX, midY, 1.1, 'F');
       } else {
         // Hinge on RIGHT edge, handle on LEFT
         const hingeX = x + w - padX;
@@ -117,6 +119,7 @@ function drawNodePDF(
         doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
         doc.circle(hingeX, topY, 0.8, 'F');
         doc.circle(hingeX, botY, 0.8, 'F');
+        doc.circle(hingeX, midY, 1.1, 'F');
       }
     }
     if (config.elementType === 'slider') {
@@ -221,7 +224,7 @@ function drawItemSketch(
   else { skH = maxH; skW = maxH * ratio; }
 
   // Reserve outer space so dimension labels sit clearly OUTSIDE the frame
-  const rightPad = 11;   // room for vertical height label on the right
+  const rightPad = 16;   // room for vertical height label on the right (matches bottom spacing)
   const bottomPad = 10;  // room for width label below
   const usableW = maxW - rightPad;
   const usableH = maxH - bottomPad;
@@ -262,7 +265,7 @@ function drawItemSketch(
   doc.line(hTickX1, skY, hTickX2, skY);
   doc.line(hTickX1, skY + skH, hTickX2, skY + skH);
   doc.line((hTickX1 + hTickX2) / 2, skY, (hTickX1 + hTickX2) / 2, skY + skH);
-  const heightLabelX = skX + skW + 8;
+  const heightLabelX = skX + skW + 12;
   const heightLabelY = skY + skH / 2;
   doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 270 });
 
