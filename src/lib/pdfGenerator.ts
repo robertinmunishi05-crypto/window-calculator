@@ -72,43 +72,54 @@ function drawNodePDF(
       doc.line(x + w - 1, y + 1, x + 1, y + h - 1);
     }
     if (config.elementType === 'opening') {
-      // Arc-style opening indicator (dashed arc spanning the segment)
+      // Arc opening indicator: single dashed crescent-shaped arc.
+      // Hinge side is the FLAT side (top + bottom corners on the hinge edge);
+      // the arc bulges OUTWARD toward the opposite (handle) side.
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
       doc.setLineWidth(0.4);
-      doc.setLineDashPattern([0.8, 0.8], 0);
+      doc.setLineDashPattern([0.9, 0.9], 0);
       const dir = config.openingDirection || 'left';
-      const padX = w * 0.06;
-      const padY = h * 0.06;
-      // Approximate an arc using a cubic Bezier curve
-      // Hinge side = apex (vertical middle); opens toward opposite side
-      const kappa = 0.5522847498;
+      const padX = w * 0.05;
+      const padY = h * 0.05;
+      const topY = y + padY;
+      const botY = y + h - padY;
+      const midY = y + h / 2;
+      // Bulge depth: how far the arc reaches from the hinge edge
+      const bulge = (w - padX * 2) * 0.92;
       if (dir === 'left') {
-        // Hinge on LEFT: arc bulges to the RIGHT
-        const hx = x + padX;        // hinge x
-        const topY = y + padY;
-        const botY = y + h - padY;
-        const farX = x + w - padX;  // far edge
-        const cpOffset = (botY - topY) / 2 * kappa;
-        // Top half: from far-top to hinge-mid
+        // Hinge on LEFT (x + padX). Arc bulges to the RIGHT.
+        const hingeX = x + padX;
+        const peakX = hingeX + bulge;
+        // Two cubic Bezier halves meeting at the rightmost peak (peakX, midY)
+        // Top half: (hingeX, topY) -> (peakX, midY)
         doc.lines(
-          [[0, (botY - topY) / 2 * kappa, (farX - hx) * (1 - kappa), (botY - topY) / 2, -(farX - hx), (botY - topY) / 2]],
-          farX, topY, [1, 1], 'S'
+          [[peakX - hingeX, 0, peakX - hingeX, midY - topY, peakX - hingeX, midY - topY]],
+          hingeX, topY, [1, 1], 'S'
         );
+        // Bottom half: (peakX, midY) -> (hingeX, botY)
+        doc.lines(
+          [[0, botY - midY, -(peakX - hingeX), botY - midY, -(peakX - hingeX), botY - midY]],
+          peakX, midY, [1, 1], 'S'
+        );
+        // Handle dot on the opposite (right) side
+        doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
+        doc.circle(x + w - padX - 1, midY, 0.7, 'F');
       } else {
-        const hx = x + w - padX;
-        const topY = y + padY;
-        const botY = y + h - padY;
-        const farX = x + padX;
+        // Hinge on RIGHT. Arc bulges to the LEFT.
+        const hingeX = x + w - padX;
+        const peakX = hingeX - bulge;
         doc.lines(
-          [[0, (botY - topY) / 2 * kappa, -(hx - farX) * (1 - kappa), (botY - topY) / 2, (hx - farX), (botY - topY) / 2]],
-          farX, topY, [1, 1], 'S'
+          [[-(hingeX - peakX), 0, -(hingeX - peakX), midY - topY, -(hingeX - peakX), midY - topY]],
+          hingeX, topY, [1, 1], 'S'
         );
+        doc.lines(
+          [[0, botY - midY, hingeX - peakX, botY - midY, hingeX - peakX, botY - midY]],
+          peakX, midY, [1, 1], 'S'
+        );
+        doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
+        doc.circle(x + padX + 1, midY, 0.7, 'F');
       }
       doc.setLineDashPattern([], 0);
-      // Small dot on the handle side (opposite hinge)
-      doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
-      if (dir === 'left') doc.circle(x + w - padX - 1, y + h / 2, 0.6, 'F');
-      else doc.circle(x + padX + 1, y + h / 2, 0.6, 'F');
     }
     if (config.elementType === 'slider') {
       // Big horizontal arrow spanning the segment
