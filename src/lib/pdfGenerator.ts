@@ -72,21 +72,43 @@ function drawNodePDF(
       doc.line(x + w - 1, y + 1, x + 1, y + h - 1);
     }
     if (config.elementType === 'opening') {
-      // Big "V" opening indicator that spans full segment height (architectural style)
+      // Arc-style opening indicator (dashed arc spanning the segment)
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
-      doc.setLineWidth(0.5);
+      doc.setLineWidth(0.4);
+      doc.setLineDashPattern([0.8, 0.8], 0);
       const dir = config.openingDirection || 'left';
-      const padX = w * 0.08;
-      const padY = h * 0.08;
+      const padX = w * 0.06;
+      const padY = h * 0.06;
+      // Approximate an arc using a cubic Bezier curve
+      // Hinge side = apex (vertical middle); opens toward opposite side
+      const kappa = 0.5522847498;
       if (dir === 'left') {
-        // Apex on the LEFT side, opens to the right
-        doc.line(x + padX, y + h / 2, x + w - padX, y + padY);
-        doc.line(x + padX, y + h / 2, x + w - padX, y + h - padY);
+        // Hinge on LEFT: arc bulges to the RIGHT
+        const hx = x + padX;        // hinge x
+        const topY = y + padY;
+        const botY = y + h - padY;
+        const farX = x + w - padX;  // far edge
+        const cpOffset = (botY - topY) / 2 * kappa;
+        // Top half: from far-top to hinge-mid
+        doc.lines(
+          [[0, (botY - topY) / 2 * kappa, (farX - hx) * (1 - kappa), (botY - topY) / 2, -(farX - hx), (botY - topY) / 2]],
+          farX, topY, [1, 1], 'S'
+        );
       } else {
-        // Apex on the RIGHT side, opens to the left
-        doc.line(x + w - padX, y + h / 2, x + padX, y + padY);
-        doc.line(x + w - padX, y + h / 2, x + padX, y + h - padY);
+        const hx = x + w - padX;
+        const topY = y + padY;
+        const botY = y + h - padY;
+        const farX = x + padX;
+        doc.lines(
+          [[0, (botY - topY) / 2 * kappa, -(hx - farX) * (1 - kappa), (botY - topY) / 2, (hx - farX), (botY - topY) / 2]],
+          farX, topY, [1, 1], 'S'
+        );
       }
+      doc.setLineDashPattern([], 0);
+      // Small dot on the handle side (opposite hinge)
+      doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
+      if (dir === 'left') doc.circle(x + w - padX - 1, y + h / 2, 0.6, 'F');
+      else doc.circle(x + padX + 1, y + h / 2, 0.6, 'F');
     }
     if (config.elementType === 'slider') {
       // Big horizontal arrow spanning the segment
