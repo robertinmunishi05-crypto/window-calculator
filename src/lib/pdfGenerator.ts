@@ -212,8 +212,8 @@ function drawItemSketch(
   else { skH = maxH; skW = maxH * ratio; }
 
   // Reserve minimal outer space: right for vertical height label, bottom for width label
-  const rightPad = 5;
-  const bottomPad = 4;
+  const rightPad = 7;
+  const bottomPad = 6;
   const usableW = maxW - rightPad;
   const usableH = maxH - bottomPad;
   const r2 = item.width / item.height;
@@ -239,8 +239,8 @@ function drawItemSketch(
   doc.setFont('helvetica', 'bold');
   doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 4, { align: 'center' });
 
-  // RIGHT (outside, close to frame): height in cm, rotated vertically
-  const heightLabelX = skX + skW + 3;
+  // RIGHT (outside frame): height in cm, vertical. Distance ~ same as bottom label gap (4mm).
+  const heightLabelX = skX + skW + 4;
   const heightLabelY = skY + skH / 2;
   doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 270 });
 
