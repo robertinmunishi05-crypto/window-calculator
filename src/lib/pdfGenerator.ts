@@ -72,54 +72,52 @@ function drawNodePDF(
       doc.line(x + w - 1, y + 1, x + 1, y + h - 1);
     }
     if (config.elementType === 'opening') {
-      // Arc opening indicator: single dashed crescent-shaped arc.
-      // Hinge side is the FLAT side (top + bottom corners on the hinge edge);
-      // the arc bulges OUTWARD toward the opposite (handle) side.
+      // Opening indicator (CAD style): two dashed diagonals forming a "V"
+      // from the hinge corners to the handle midpoint, plus a dashed arc
+      // showing the swing path. Small dot marks the hinge.
       doc.setDrawColor(c.accent[0], c.accent[1], c.accent[2]);
-      doc.setLineWidth(0.4);
+      doc.setLineWidth(0.35);
       doc.setLineDashPattern([0.9, 0.9], 0);
       const dir = config.openingDirection || 'left';
-      const padX = w * 0.05;
-      const padY = h * 0.05;
+      const padX = w * 0.06;
+      const padY = h * 0.06;
       const topY = y + padY;
       const botY = y + h - padY;
       const midY = y + h / 2;
-      // Bulge depth: how far the arc reaches from the hinge edge
-      const bulge = (w - padX * 2) * 0.92;
       if (dir === 'left') {
-        // Hinge on LEFT (x + padX). Arc bulges to the RIGHT.
+        // Hinge on LEFT edge, handle on RIGHT
         const hingeX = x + padX;
-        const peakX = hingeX + bulge;
-        // Two cubic Bezier halves meeting at the rightmost peak (peakX, midY)
-        // Top half: (hingeX, topY) -> (peakX, midY)
+        const handleX = x + w - padX;
+        // V: two diagonals from hinge corners to handle midpoint
+        doc.line(hingeX, topY, handleX, midY);
+        doc.line(hingeX, botY, handleX, midY);
+        // Dashed arc (swing): from top hinge corner curving out to bottom hinge corner
+        const reach = handleX - hingeX;
         doc.lines(
-          [[peakX - hingeX, 0, peakX - hingeX, midY - topY, peakX - hingeX, midY - topY]],
+          [[reach, 0, reach, botY - topY, 0, botY - topY]],
           hingeX, topY, [1, 1], 'S'
         );
-        // Bottom half: (peakX, midY) -> (hingeX, botY)
-        doc.lines(
-          [[0, botY - midY, -(peakX - hingeX), botY - midY, -(peakX - hingeX), botY - midY]],
-          peakX, midY, [1, 1], 'S'
-        );
-        // Handle dot on the opposite (right) side
+        doc.setLineDashPattern([], 0);
+        // Hinge dot on LEFT edge (top corner area)
         doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
-        doc.circle(x + w - padX - 1, midY, 0.7, 'F');
+        doc.circle(hingeX, topY, 0.8, 'F');
+        doc.circle(hingeX, botY, 0.8, 'F');
       } else {
-        // Hinge on RIGHT. Arc bulges to the LEFT.
+        // Hinge on RIGHT edge, handle on LEFT
         const hingeX = x + w - padX;
-        const peakX = hingeX - bulge;
+        const handleX = x + padX;
+        doc.line(hingeX, topY, handleX, midY);
+        doc.line(hingeX, botY, handleX, midY);
+        const reach = hingeX - handleX;
         doc.lines(
-          [[-(hingeX - peakX), 0, -(hingeX - peakX), midY - topY, -(hingeX - peakX), midY - topY]],
+          [[-reach, 0, -reach, botY - topY, 0, botY - topY]],
           hingeX, topY, [1, 1], 'S'
         );
-        doc.lines(
-          [[0, botY - midY, hingeX - peakX, botY - midY, hingeX - peakX, botY - midY]],
-          peakX, midY, [1, 1], 'S'
-        );
+        doc.setLineDashPattern([], 0);
         doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
-        doc.circle(x + padX + 1, midY, 0.7, 'F');
+        doc.circle(hingeX, topY, 0.8, 'F');
+        doc.circle(hingeX, botY, 0.8, 'F');
       }
-      doc.setLineDashPattern([], 0);
     }
     if (config.elementType === 'slider') {
       // Big horizontal arrow spanning the segment
@@ -222,9 +220,9 @@ function drawItemSketch(
   if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
   else { skH = maxH; skW = maxH * ratio; }
 
-  // Reserve minimal outer space: right for vertical height label, bottom for width label
-  const rightPad = 7;
-  const bottomPad = 6;
+  // Reserve outer space so dimension labels sit clearly OUTSIDE the frame
+  const rightPad = 11;   // room for vertical height label on the right
+  const bottomPad = 10;  // room for width label below
   const usableW = maxW - rightPad;
   const usableH = maxH - bottomPad;
   const r2 = item.width / item.height;
@@ -244,14 +242,27 @@ function drawItemSketch(
 
   drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height, showGlassSizes);
 
-  // BOTTOM (outside, close to frame): width in cm
+  // BOTTOM (outside, with breathing room): width in cm
   doc.setTextColor(30, 30, 30);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 4, { align: 'center' });
+  // Small tick marks on the frame corners + offset text
+  doc.setDrawColor(120, 120, 120);
+  doc.setLineWidth(0.2);
+  const wTickY1 = skY + skH + 1.5;
+  const wTickY2 = skY + skH + 4;
+  doc.line(skX, wTickY1, skX, wTickY2);
+  doc.line(skX + skW, wTickY1, skX + skW, wTickY2);
+  doc.line(skX, (wTickY1 + wTickY2) / 2, skX + skW, (wTickY1 + wTickY2) / 2);
+  doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 8, { align: 'center' });
 
-  // RIGHT (outside frame): height in cm, vertical. Distance ~ same as bottom label gap (4mm).
-  const heightLabelX = skX + skW + 4;
+  // RIGHT (outside frame): height in cm, vertical, with tick marks
+  const hTickX1 = skX + skW + 1.5;
+  const hTickX2 = skX + skW + 4;
+  doc.line(hTickX1, skY, hTickX2, skY);
+  doc.line(hTickX1, skY + skH, hTickX2, skY + skH);
+  doc.line((hTickX1 + hTickX2) / 2, skY, (hTickX1 + hTickX2) / 2, skY + skH);
+  const heightLabelX = skX + skW + 8;
   const heightLabelY = skY + skH / 2;
   doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 270 });
 
@@ -259,7 +270,7 @@ function drawItemSketch(
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
-    doc.text(`x${item.quantity}`, skX + skW - 2, skY + skH + 4, { align: 'right' });
+    doc.text(`x${item.quantity}`, skX + skW - 2, skY + skH + 8, { align: 'right' });
   }
 }
 
