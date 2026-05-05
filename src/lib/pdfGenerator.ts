@@ -220,9 +220,9 @@ function drawItemSketch(
   if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
   else { skH = maxH; skW = maxH * ratio; }
 
-  // Reserve minimal outer space: right for vertical height label, bottom for width label
-  const rightPad = 7;
-  const bottomPad = 6;
+  // Reserve outer space so dimension labels sit clearly OUTSIDE the frame
+  const rightPad = 11;   // room for vertical height label on the right
+  const bottomPad = 10;  // room for width label below
   const usableW = maxW - rightPad;
   const usableH = maxH - bottomPad;
   const r2 = item.width / item.height;
@@ -242,14 +242,27 @@ function drawItemSketch(
 
   drawNodePDF(doc, item.rootNode, skX + frameT, skY + frameT, skW - frameT * 2, skH - frameT * 2, item.color, item.width, item.height, showGlassSizes);
 
-  // BOTTOM (outside, close to frame): width in cm
+  // BOTTOM (outside, with breathing room): width in cm
   doc.setTextColor(30, 30, 30);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 4, { align: 'center' });
+  // Small tick marks on the frame corners + offset text
+  doc.setDrawColor(120, 120, 120);
+  doc.setLineWidth(0.2);
+  const wTickY1 = skY + skH + 1.5;
+  const wTickY2 = skY + skH + 4;
+  doc.line(skX, wTickY1, skX, wTickY2);
+  doc.line(skX + skW, wTickY1, skX + skW, wTickY2);
+  doc.line(skX, (wTickY1 + wTickY2) / 2, skX + skW, (wTickY1 + wTickY2) / 2);
+  doc.text(`${(item.width / 10).toFixed(1)} cm`, skX + skW / 2, skY + skH + 8, { align: 'center' });
 
-  // RIGHT (outside frame): height in cm, vertical. Distance ~ same as bottom label gap (4mm).
-  const heightLabelX = skX + skW + 4;
+  // RIGHT (outside frame): height in cm, vertical, with tick marks
+  const hTickX1 = skX + skW + 1.5;
+  const hTickX2 = skX + skW + 4;
+  doc.line(hTickX1, skY, hTickX2, skY);
+  doc.line(hTickX1, skY + skH, hTickX2, skY + skH);
+  doc.line((hTickX1 + hTickX2) / 2, skY, (hTickX1 + hTickX2) / 2, skY + skH);
+  const heightLabelX = skX + skW + 8;
   const heightLabelY = skY + skH / 2;
   doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 270 });
 
@@ -257,7 +270,7 @@ function drawItemSketch(
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
-    doc.text(`x${item.quantity}`, skX + skW - 2, skY + skH + 4, { align: 'right' });
+    doc.text(`x${item.quantity}`, skX + skW - 2, skY + skH + 8, { align: 'right' });
   }
 }
 
