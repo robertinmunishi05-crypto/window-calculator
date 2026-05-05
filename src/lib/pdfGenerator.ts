@@ -221,7 +221,7 @@ function drawItemSketch(
   else { skH = maxH; skW = maxH * ratio; }
 
   // Reserve outer space so dimension labels sit clearly OUTSIDE the frame
-  const rightPad = 11;   // room for vertical height label on the right
+  const rightPad = 16;   // room for vertical height label on the right (matches bottom spacing)
   const bottomPad = 10;  // room for width label below
   const usableW = maxW - rightPad;
   const usableH = maxH - bottomPad;
@@ -262,7 +262,7 @@ function drawItemSketch(
   doc.line(hTickX1, skY, hTickX2, skY);
   doc.line(hTickX1, skY + skH, hTickX2, skY + skH);
   doc.line((hTickX1 + hTickX2) / 2, skY, (hTickX1 + hTickX2) / 2, skY + skH);
-  const heightLabelX = skX + skW + 8;
+  const heightLabelX = skX + skW + 12;
   const heightLabelY = skY + skH / 2;
   doc.text(`${(item.height / 10).toFixed(1)} cm`, heightLabelX, heightLabelY, { align: 'center', angle: 270 });
 
