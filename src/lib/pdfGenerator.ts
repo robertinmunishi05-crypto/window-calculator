@@ -155,15 +155,17 @@ function drawNodePDF(
       }
       drawNodePDF(doc, child, cx, cy, cw, ch, color, childWMm, childHMm, showGlassSizes);
 
-      // Dimension labels for unequal splits
+      // Dimension labels for unequal splits (OUTSIDE the sketch)
       if (!isEqual) {
         doc.setFontSize(6);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100, 100, 100);
         if (node.direction === 'vertical') {
-          doc.text(`${(sizes[i] / 10).toFixed(1)} cm`, cx + cw / 2, cy + 3.5, { align: 'center' });
+          // Above each segment, centered horizontally, outside the frame
+          doc.text(`${(sizes[i] / 10).toFixed(1)} cm`, cx + cw / 2, cy - 2.5, { align: 'center' });
         } else {
-          doc.text(`${(sizes[i] / 10).toFixed(1)} cm`, cx + 3.5, cy + ch / 2, { align: 'center', angle: 270 });
+          // Left of each segment, centered vertically, outside the frame
+          doc.text(`${(sizes[i] / 10).toFixed(1)} cm`, cx - 2.5, cy + ch / 2, { align: 'center', angle: 270 });
         }
       }
 
