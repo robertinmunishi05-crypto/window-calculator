@@ -137,21 +137,36 @@ function drawNodePDF(
 
   if (node.type === 'split' && node.children && node.sizes) {
     const totalSize = node.sizes.reduce((a, b) => a + b, 0);
+    const sizes = node.sizes;
+    const isEqual = sizes.every(s => Math.abs(s - sizes[0]) < 2);
     let offset = 0;
     node.children.forEach((child, i) => {
-      const ratio = node.sizes![i] / totalSize;
+      const ratio = sizes[i] / totalSize;
       let cx: number, cy: number, cw: number, ch: number;
       let childWMm: number, childHMm: number;
       if (node.direction === 'vertical') {
         cx = x + offset; cy = y; cw = w * ratio; ch = h;
-        childWMm = node.sizes![i]; childHMm = heightMm;
+        childWMm = sizes[i]; childHMm = heightMm;
         offset += cw;
       } else {
         cx = x; cy = y + offset; cw = w; ch = h * ratio;
-        childWMm = widthMm; childHMm = node.sizes![i];
+        childWMm = widthMm; childHMm = sizes[i];
         offset += ch;
       }
       drawNodePDF(doc, child, cx, cy, cw, ch, color, childWMm, childHMm, showGlassSizes);
+
+      // Dimension labels for unequal splits
+      if (!isEqual) {
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        if (node.direction === 'vertical') {
+          doc.text(`${(sizes[i] / 10).toFixed(1)} cm`, cx + cw / 2, cy + 3.5, { align: 'center' });
+        } else {
+          doc.text(`${(sizes[i] / 10).toFixed(1)} cm`, cx + 3.5, cy + ch / 2, { align: 'center', angle: 270 });
+        }
+      }
+
       if (i < node.children!.length - 1) {
         doc.setDrawColor(c.frame[0], c.frame[1], c.frame[2]);
         doc.setLineWidth(1.5);
