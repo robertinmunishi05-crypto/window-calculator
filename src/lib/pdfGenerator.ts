@@ -91,35 +91,14 @@ function drawNodePDF(
         // V: two diagonals from hinge corners to handle midpoint
         doc.line(hingeX, topY, handleX, midY);
         doc.line(hingeX, botY, handleX, midY);
-        // Dashed arc (swing): from top hinge corner curving out to bottom hinge corner
-        const reach = handleX - hingeX;
-        doc.lines(
-          [[reach, 0, reach, botY - topY, 0, botY - topY]],
-          hingeX, topY, [1, 1], 'S'
-        );
         doc.setLineDashPattern([], 0);
-        // Hinge dot on LEFT edge (top corner area)
-        doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
-        doc.circle(hingeX, topY, 0.8, 'F');
-        doc.circle(hingeX, botY, 0.8, 'F');
-        // Hinge midpoint dot — clearly marks where opening starts
-        doc.circle(hingeX, midY, 1.1, 'F');
       } else {
         // Hinge on RIGHT edge, handle on LEFT
         const hingeX = x + w - padX;
         const handleX = x + padX;
         doc.line(hingeX, topY, handleX, midY);
         doc.line(hingeX, botY, handleX, midY);
-        const reach = hingeX - handleX;
-        doc.lines(
-          [[-reach, 0, -reach, botY - topY, 0, botY - topY]],
-          hingeX, topY, [1, 1], 'S'
-        );
         doc.setLineDashPattern([], 0);
-        doc.setFillColor(c.accent[0], c.accent[1], c.accent[2]);
-        doc.circle(hingeX, topY, 0.8, 'F');
-        doc.circle(hingeX, botY, 0.8, 'F');
-        doc.circle(hingeX, midY, 1.1, 'F');
       }
     }
     if (config.elementType === 'slider') {
