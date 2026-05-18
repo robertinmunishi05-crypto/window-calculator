@@ -12,12 +12,21 @@ import {
   ProfileSystem,
   getFrameThicknessCm,
   ROLLER_COLOR_LABELS,
+  RollerColor,
 } from '@/types/configurator';
 
 const COLOR_MAP: Record<WindowColor, { frame: number[]; glass: number[]; accent: number[]; panel: number[] }> = {
   white: { frame: [212, 212, 212], glass: [212, 232, 247], accent: [153, 153, 153], panel: [232, 232, 232] },
   brown: { frame: [107, 66, 38], glass: [184, 212, 232], accent: [139, 105, 20], panel: [139, 105, 20] },
   black: { frame: [42, 42, 42], glass: [168, 200, 224], accent: [102, 102, 102], panel: [68, 68, 68] },
+};
+
+const ROLLER_COLOR_MAP: Record<RollerColor, { fill: number[]; stroke: number[] }> = {
+  white:      { fill: [240, 240, 240], stroke: [160, 160, 160] },
+  brown:      { fill: [107, 66, 38],   stroke: [70, 40, 20] },
+  black:      { fill: [30, 30, 30],    stroke: [10, 10, 10] },
+  gray:       { fill: [156, 163, 175], stroke: [90, 95, 105] },
+  anthracite: { fill: [56, 62, 66],    stroke: [25, 28, 30] },
 };
 
 // ===== DRAW NODE =====
