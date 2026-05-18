@@ -11,6 +11,8 @@ export type DoorComboPosition = 'panel-bottom' | 'panel-top';
 
 export type WindowColor = 'white' | 'brown' | 'black';
 
+export type RollerColor = 'white' | 'brown' | 'black' | 'gray' | 'anthracite';
+
 export type SplitDirection = 'vertical' | 'horizontal';
 
 // ===== PROFILE SYSTEM =====
@@ -70,6 +72,8 @@ export interface ConfigItem {
   color: WindowColor;
   quantity: number;
   rootNode: WindowNode;
+  hasRoller?: boolean;
+  rollerColor?: RollerColor;
 }
 
 // ===== LABELS =====
@@ -77,6 +81,14 @@ export const COLOR_LABELS: Record<WindowColor, string> = {
   white: 'E Bardhë',
   brown: 'Kafe',
   black: 'E Zezë',
+};
+
+export const ROLLER_COLOR_LABELS: Record<RollerColor, string> = {
+  white: 'E Bardhë',
+  brown: 'Kafe',
+  black: 'E Zezë',
+  gray: 'Gri',
+  anthracite: 'Antracit',
 };
 
 export const ELEMENT_TYPE_LABELS: Record<ElementType, string> = {

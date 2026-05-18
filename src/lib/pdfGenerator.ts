@@ -11,6 +11,7 @@ import {
   WindowColor,
   ProfileSystem,
   getFrameThicknessCm,
+  ROLLER_COLOR_LABELS,
 } from '@/types/configurator';
 
 const COLOR_MAP: Record<WindowColor, { frame: number[]; glass: number[]; accent: number[]; panel: number[] }> = {
@@ -409,7 +410,7 @@ export function generateClientPDF(client: ClientData, items: ConfigItem[]) {
   const tableData = items.map((item, i) => [
     (i + 1).toString(),
     item.projectId || '—',
-    describeNode(item.rootNode),
+    describeNode(item.rootNode) + (item.hasRoller ? ` + Rolet (${ROLLER_COLOR_LABELS[item.rollerColor || 'white']})` : ''),
     `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)} cm`,
     COLOR_LABELS[item.color],
     item.quantity.toString(),
@@ -456,7 +457,7 @@ export function generateCompanyPDF(client: ClientData, items: ConfigItem[], prof
     return [
       (i + 1).toString(),
       item.projectId || '—',
-      describeNode(item.rootNode),
+      describeNode(item.rootNode) + (item.hasRoller ? ` + Rolet (${ROLLER_COLOR_LABELS[item.rollerColor || 'white']})` : ''),
       `${(item.width / 10).toFixed(1)} × ${(item.height / 10).toFixed(1)}`,
       COLOR_LABELS[item.color],
       item.quantity.toString(),
