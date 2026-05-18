@@ -12,12 +12,21 @@ import {
   ProfileSystem,
   getFrameThicknessCm,
   ROLLER_COLOR_LABELS,
+  RollerColor,
 } from '@/types/configurator';
 
 const COLOR_MAP: Record<WindowColor, { frame: number[]; glass: number[]; accent: number[]; panel: number[] }> = {
   white: { frame: [212, 212, 212], glass: [212, 232, 247], accent: [153, 153, 153], panel: [232, 232, 232] },
   brown: { frame: [107, 66, 38], glass: [184, 212, 232], accent: [139, 105, 20], panel: [139, 105, 20] },
   black: { frame: [42, 42, 42], glass: [168, 200, 224], accent: [102, 102, 102], panel: [68, 68, 68] },
+};
+
+const ROLLER_COLOR_MAP: Record<RollerColor, { fill: number[]; stroke: number[] }> = {
+  white:      { fill: [240, 240, 240], stroke: [160, 160, 160] },
+  brown:      { fill: [107, 66, 38],   stroke: [70, 40, 20] },
+  black:      { fill: [30, 30, 30],    stroke: [10, 10, 10] },
+  gray:       { fill: [156, 163, 175], stroke: [90, 95, 105] },
+  anthracite: { fill: [56, 62, 66],    stroke: [25, 28, 30] },
 };
 
 // ===== DRAW NODE =====
@@ -215,26 +224,50 @@ function drawItemSketch(
   x: number, y: number, maxW: number, maxH: number,
   showGlassSizes: boolean = false,
 ) {
-  const ratio = item.width / item.height;
   let skW: number, skH: number;
-  if (ratio > maxW / maxH) { skW = maxW; skH = maxW / ratio; }
-  else { skH = maxH; skW = maxH * ratio; }
 
   // Reserve outer space so dimension labels sit clearly OUTSIDE the frame
-  const rightPad = 16;   // room for vertical height label on the right (matches bottom spacing)
+  const rightPad = 16;   // room for vertical height label on the right
   const bottomPad = 10;  // room for width label below
+  const rollerBoxH = item.hasRoller ? 6 : 0; // visual roller cassette above the frame
+  const topPad = rollerBoxH;
   const usableW = maxW - rightPad;
-  const usableH = maxH - bottomPad;
+  const usableH = maxH - bottomPad - topPad;
   const r2 = item.width / item.height;
   if (r2 > usableW / usableH) { skW = usableW; skH = usableW / r2; }
   else { skH = usableH; skW = usableH * r2; }
 
-  // Anchor sketch to the LEFT so sketches start from the left side.
-  // Height label sits on the right, close to the frame.
   const skX = x;
-  // Anchor sketch to the TOP so the bottom width label sits right under the frame.
-  const skY = y;
+  const skY = y + topPad; // make room above for the roller cassette
   const frameT = 1.5;
+
+  // ===== ROLLER (Rolet) — drawn ABOVE the frame =====
+  if (item.hasRoller) {
+    const rc = ROLLER_COLOR_MAP[item.rollerColor || 'white'];
+    const rx = skX;
+    const ry = skY - rollerBoxH;
+    const rw = skW;
+    const rh = rollerBoxH;
+    // Cassette body
+    doc.setFillColor(rc.fill[0], rc.fill[1], rc.fill[2]);
+    doc.setDrawColor(rc.stroke[0], rc.stroke[1], rc.stroke[2]);
+    doc.setLineWidth(0.3);
+    doc.rect(rx, ry, rw, rh, 'FD');
+    // Slat lines (3 thin horizontal lines to suggest the rolled-up shutter)
+    doc.setLineWidth(0.15);
+    for (let i = 1; i <= 3; i++) {
+      const ly = ry + (rh * i) / 4;
+      doc.line(rx + 0.5, ly, rx + rw - 0.5, ly);
+    }
+    // Tiny label "ROL" if box is tall enough
+    if (rh >= 5) {
+      const isDark = (rc.fill[0] + rc.fill[1] + rc.fill[2]) / 3 < 140;
+      doc.setFontSize(4.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(isDark ? 245 : 60, isDark ? 245 : 60, isDark ? 245 : 60);
+      doc.text('ROL', rx + rw / 2, ry + rh / 2 + 1.2, { align: 'center' });
+    }
+  }
 
   doc.setDrawColor(100, 100, 100);
   doc.setLineWidth(frameT);
@@ -384,7 +417,8 @@ function addSketchPages(doc: jsPDF, items: ConfigItem[], showGlassSizes: boolean
       const rowDrawH = Math.max(
         ...rowItems.map(it => Math.min(drawW / (it.width / it.height), 90))
       );
-      const rowH = rowDrawH + labelH + rowLabelGap;
+      const rowHasRoller = rowItems.some(it => it.hasRoller);
+      const rowH = rowDrawH + labelH + rowLabelGap + (rowHasRoller ? 6 : 0);
       if (curY + rowH > ph - 20) break;
 
       rowItems.forEach((item, i) => {
