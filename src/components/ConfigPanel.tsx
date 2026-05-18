@@ -1,11 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ruler, Palette, ScanLine, Maximize2, Settings2 } from "lucide-react";
+import { Ruler, Palette, ScanLine, Maximize2, Settings2, Blinds } from "lucide-react";
 import {
   ConfigItem, WindowColor, COLOR_LABELS,
   calculateLinearMeters, calculateGlassPanelSizes,
   ProfileSystem, ProfileSystemType, PROFILE_SYSTEMS, getFrameThicknessCm,
+  RollerColor, ROLLER_COLOR_LABELS,
 } from "@/types/configurator";
 import { cn } from "@/lib/utils";
 import WindowEditor from "./WindowEditor";
@@ -21,6 +22,14 @@ const colorOptions: { value: WindowColor; colorClass: string }[] = [
   { value: 'white', colorClass: 'bg-window-white' },
   { value: 'brown', colorClass: 'bg-window-brown' },
   { value: 'black', colorClass: 'bg-window-black' },
+];
+
+const rollerColorOptions: { value: RollerColor; hex: string }[] = [
+  { value: 'white', hex: '#f2f2f2' },
+  { value: 'brown', hex: '#6b4226' },
+  { value: 'black', hex: '#1a1a1a' },
+  { value: 'gray', hex: '#9ca3af' },
+  { value: 'anthracite', hex: '#383e42' },
 ];
 
 const ConfigPanel = ({ item, onChange, profileSystem, onProfileChange }: ConfigPanelProps) => {
@@ -157,6 +166,72 @@ const ConfigPanel = ({ item, onChange, profileSystem, onProfileChange }: ConfigP
         height={item.height}
         productType={item.productType}
       />
+
+      {/* Roller Shutters (Rolet) — only for windows */}
+      {item.productType === 'window' && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Blinds className="h-4 w-4" />
+              Rolet
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                onClick={() => onChange({ ...item, hasRoller: false, rollerColor: undefined })}
+                className={cn(
+                  "p-3 rounded-lg border-2 text-sm font-medium transition-all",
+                  !item.hasRoller
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/40"
+                )}
+              >
+                Pa Rolet
+              </button>
+              <button
+                onClick={() => onChange({ ...item, hasRoller: true, rollerColor: item.rollerColor ?? 'white' })}
+                className={cn(
+                  "p-3 rounded-lg border-2 text-sm font-medium transition-all",
+                  item.hasRoller
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/40"
+                )}
+              >
+                Me Rolet
+              </button>
+            </div>
+
+            {item.hasRoller && (
+              <div>
+                <Label className="text-xs mb-2 block">Ngjyra e Roletës</Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {rollerColorOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => onChange({ ...item, rollerColor: opt.value })}
+                      className={cn(
+                        "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all",
+                        item.rollerColor === opt.value
+                          ? "border-primary shadow-sm"
+                          : "border-border hover:border-primary/40"
+                      )}
+                    >
+                      <div
+                        className="w-7 h-7 rounded-full border"
+                        style={{ backgroundColor: opt.hex }}
+                      />
+                      <span className="text-[10px] font-medium leading-tight text-center">
+                        {ROLLER_COLOR_LABELS[opt.value]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Linear Meters */}
       <Card>
