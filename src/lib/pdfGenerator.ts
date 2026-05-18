@@ -11,6 +11,7 @@ import {
   WindowColor,
   ProfileSystem,
   getFrameThicknessCm,
+  ROLLER_COLOR_LABELS,
 } from '@/types/configurator';
 
 const COLOR_MAP: Record<WindowColor, { frame: number[]; glass: number[]; accent: number[]; panel: number[] }> = {
