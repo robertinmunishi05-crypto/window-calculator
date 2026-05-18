@@ -323,10 +323,9 @@ function addSketchPages(doc: jsPDF, items: ConfigItem[], showGlassSizes: boolean
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const margin = 15;
-  const gap = 8;
+  const gap = 10; // ~28px konstante mes skicave
   const availW = pw - margin * 2;
-  const maxCellH = 55;
-  const rowH = maxCellH + 22;
+  const availH = ph - 38 - 20; // header + footer
 
   // Group identical items (same dimensions)
   const uniqueItems: ConfigItem[] = [];
@@ -339,36 +338,61 @@ function addSketchPages(doc: jsPDF, items: ConfigItem[], showGlassSizes: boolean
     }
   }
 
-  let pageItems = [...uniqueItems];
-  while (pageItems.length > 0) {
+  // Pick an optimal column count that fills the page nicely without large
+  // empty bands. We try 2..5 columns and score by how much of the available
+  // area is used (without overflowing the page).
+  const n = uniqueItems.length;
+  if (n === 0) return;
+
+  const avgRatio = uniqueItems.reduce((s, it) => s + it.width / it.height, 0) / n;
+  // label paddings reserved inside drawItemSketch (rightPad 16, bottomPad 10)
+  const labelW = 16, labelH = 10;
+  const rowLabelGap = 4; // extra breathing space under each row's label
+
+  let bestCols = 2;
+  let bestScore = -Infinity;
+  for (let cols = 1; cols <= Math.min(6, n); cols++) {
+    const cellW = (availW - gap * (cols - 1)) / cols;
+    // estimated drawing height for an average-ratio item in this cellW
+    const drawW = cellW - labelW;
+    const drawH = drawW / Math.max(0.3, avgRatio);
+    const cellH = drawH + labelH + rowLabelGap;
+    const rows = Math.ceil(n / cols);
+    const totalH = rows * cellH + (rows - 1) * gap;
+    // Penalize overflow (multi-page) softly; reward compact + balanced fill
+    const pagesNeeded = Math.max(1, Math.ceil(totalH / availH));
+    const lastRowFill = (n - (rows - 1) * cols) / cols; // 0..1
+    const usage = Math.min(1, totalH / (availH * pagesNeeded));
+    const score = usage * 1.0 + lastRowFill * 0.25 - (pagesNeeded - 1) * 0.15 - Math.max(0, cellH - 80) * 0.002;
+    if (score > bestScore) { bestScore = score; bestCols = cols; }
+  }
+
+  const cols = bestCols;
+  const cellW = (availW - gap * (cols - 1)) / cols;
+
+  let idx = 0;
+  while (idx < uniqueItems.length) {
     doc.addPage();
     addHeader(doc, showGlassSizes ? 'Skicat Teknike' : 'Skicat e Elementeve');
-
     let curY = 38;
-    while (pageItems.length > 0 && curY + rowH < ph - 20) {
-      // Determine how many fit in this row
-      let rowItems: ConfigItem[] = [];
-      let usedWidth = 0;
 
-      for (const item of pageItems) {
-        const itemRatio = item.width / item.height;
-        const cellW = Math.min(availW / 2, Math.max(35, maxCellH * itemRatio + 10));
-        if (rowItems.length > 0 && usedWidth + cellW + gap > availW) break;
-        rowItems.push(item);
-        usedWidth += cellW + (rowItems.length > 1 ? gap : 0);
-      }
+    while (idx < uniqueItems.length) {
+      const rowItems = uniqueItems.slice(idx, idx + cols);
+      // Row height = max drawn height of items in this row
+      const drawW = cellW - labelW;
+      const rowDrawH = Math.max(
+        ...rowItems.map(it => Math.min(drawW / (it.width / it.height), 90))
+      );
+      const rowH = rowDrawH + labelH + rowLabelGap;
+      if (curY + rowH > ph - 20) break;
 
-      if (rowItems.length === 0) break;
-      pageItems = pageItems.slice(rowItems.length);
-
-      // Distribute evenly
-      const cellW = (availW - gap * (rowItems.length - 1)) / rowItems.length;
       rowItems.forEach((item, i) => {
         const ix = margin + i * (cellW + gap);
-        drawItemSketch(doc, item, ix, curY, cellW, maxCellH, showGlassSizes);
+        drawItemSketch(doc, item, ix, curY, cellW, rowH, showGlassSizes);
       });
 
-      curY += rowH;
+      curY += rowH + gap;
+      idx += rowItems.length;
     }
   }
 }
