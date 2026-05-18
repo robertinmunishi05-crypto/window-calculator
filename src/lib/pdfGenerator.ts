@@ -417,7 +417,8 @@ function addSketchPages(doc: jsPDF, items: ConfigItem[], showGlassSizes: boolean
       const rowDrawH = Math.max(
         ...rowItems.map(it => Math.min(drawW / (it.width / it.height), 90))
       );
-      const rowH = rowDrawH + labelH + rowLabelGap;
+      const rowHasRoller = rowItems.some(it => it.hasRoller);
+      const rowH = rowDrawH + labelH + rowLabelGap + (rowHasRoller ? 6 : 0);
       if (curY + rowH > ph - 20) break;
 
       rowItems.forEach((item, i) => {
